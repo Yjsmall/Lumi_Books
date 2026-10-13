@@ -2,7 +2,7 @@ package com.huangder.lumibooks.domain.model
 
 enum class SelectionMenuAction(val key: String) {
     HIGHLIGHT("highlight"), UNDERLINE("underline"), NOTE("note"),
-    DICTIONARY("dictionary"), EXCERPT("excerpt"),
+    DICTIONARY("dictionary"), EXCERPT("excerpt"), CONTEXT("context"),
     SEARCH("search"), WEB_SEARCH("web_search"), COPY("copy"), REPLACE("replace")
 }
 

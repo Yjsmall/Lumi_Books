@@ -15,6 +15,7 @@ class SelectionMenuSettingsJsonTest {
     @Test fun migratesLegacyVisibilityWithoutDroppingNewActions() {
         val settings = decodeSelectionMenuSettings("""{"copy":false,"search":true}""")
         assertFalse(settings.isVisible(SelectionMenuAction.COPY))
+        assertTrue(settings.isVisible(SelectionMenuAction.CONTEXT))
         assertTrue(settings.isVisible(SelectionMenuAction.EXCERPT))
     }
 

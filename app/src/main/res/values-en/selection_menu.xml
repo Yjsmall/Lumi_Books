@@ -5,4 +5,11 @@
     <string name="selection_menu_txt_only">TXT only</string>
     <string name="selection_menu_move_up">Move %1$s up</string>
     <string name="selection_menu_move_down">Move %1$s down</string>
+    <string name="selection_context">Context</string>
+    <string name="selection_context_description">Save the complete sentence containing the selected text to notes, keeping its position in the book.</string>
+    <string name="selection_context_loading">Loading context…</string>
+    <string name="selection_context_unavailable">Context is unavailable. Please select the text again.</string>
+    <string name="selection_context_save">Save to notes</string>
+    <string name="selection_context_saved">Context saved to notes</string>
+    <string name="selection_context_save_failed">Could not save. Please try again.</string>
 </resources>

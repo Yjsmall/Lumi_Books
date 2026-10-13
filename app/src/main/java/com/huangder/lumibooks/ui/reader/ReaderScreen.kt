@@ -4,6 +4,7 @@ import com.huangder.lumibooks.domain.model.SelectionMenuAction
 import com.huangder.lumibooks.domain.model.SelectionMenuSettings
 import com.huangder.lumibooks.ui.components.SelectionMenuSettingsDialog
 import com.huangder.lumibooks.ui.components.labelRes
+import androidx.compose.runtime.key
 import com.huangder.lumibooks.domain.model.ReaderImageAdjustments
 import com.huangder.lumibooks.BuildConfig
 import com.huangder.lumibooks.ui.icons.AppIcons
@@ -1863,6 +1864,7 @@ fun ReaderScreen(
 
     // 🔥 原生选择 ActionMode 回调 → 等待笔记输入
     var pendingSelection by remember { mutableStateOf<PendingSelection?>(null) }
+    var pendingContext by remember { mutableStateOf<PendingSelection?>(null) }
     var showNoteInput by remember { mutableStateOf(false) }
     var noteInputText by remember { mutableStateOf("") }
 
@@ -1941,7 +1943,7 @@ fun ReaderScreen(
     var requestCloseSearch by remember { mutableStateOf(false) }
 
     // 处理返回键：触发退出动画，而不是直接关闭
-    val isAnySheetOpen = excerptRequest != null || localDictionaryQuery != null || annotationTagState.editingTarget != null || showNotesList || showNoteInput || pendingBookmarkRemarkId != null || showToc || showThemeSheet || showHighlightRules ||
+    val isAnySheetOpen = pendingContext != null || excerptRequest != null || localDictionaryQuery != null || annotationTagState.editingTarget != null || showNotesList || showNoteInput || pendingBookmarkRemarkId != null || showToc || showThemeSheet || showHighlightRules ||
         showAdvancedSheet || showSearch || showWebSearch || showTxtEncodingDialog || showTxtTocDialog || showReplaceInput
     val bookmarkPullSupported = (isBookLayout && !isBookLayoutContinuousScroll) ||
         (uiState.useNewEngine && !renderedContinuousScrollMode && !isVerticalWriting)
@@ -4679,6 +4681,21 @@ fun ReaderScreen(
             }
             dismissSelectionMenu()
         },
+        onContext = {
+            selectionForAction()?.let { selection ->
+                val fresh = if (selection.annotationOnly || isBookLayout || isContinuousScrollMode) null
+                    else readViewRef.value?.getSelectionInfo()
+                pendingContext = PendingSelection(
+                    selectedText = fresh?.selectedText ?: selection.selectedText,
+                    chapterIndex = fresh?.chapterIndex ?: selection.chapterIndex,
+                    startPosition = fresh?.startPosition ?: selection.charStart,
+                    endPosition = fresh?.endPosition ?: selection.charEnd,
+                    startLocatorJson = selection.startLocatorJson,
+                    endLocatorJson = selection.endLocatorJson
+                )
+            }
+            dismissSelectionMenu()
+        },
         onSearch = {
             val query = if (isBookLayout || isContinuousScrollMode) {
                 selectionForAction()?.selectedText
@@ -4836,6 +4853,36 @@ fun ReaderScreen(
             showMenuSettings = false
         }
     )
+
+    pendingContext?.let { selection ->
+        key(selection) {
+            SelectionContextDialog(
+                selectedText = selection.selectedText,
+                loadContext = {
+                    viewModel.getSelectionContext(selection.chapterIndex, selection.startPosition,
+                        selection.endPosition, selection.selectedText, selection.startLocatorJson, selection.endLocatorJson)
+                },
+                onSave = { paragraph, onSaved ->
+                    viewModel.addNote(
+                        selectedText = selection.selectedText,
+                        noteText = paragraph,
+                        chapterIndex = selection.chapterIndex,
+                        startPosition = selection.startPosition,
+                        endPosition = selection.endPosition,
+                        color = DefaultReaderHighlightColorWithAlpha,
+                        startLocatorJson = selection.startLocatorJson,
+                        endLocatorJson = selection.endLocatorJson,
+                        isNote = true,
+                        onSaved = { success ->
+                            if (success) Toast.makeText(context, R.string.selection_context_saved, Toast.LENGTH_SHORT).show()
+                            onSaved(success)
+                        }
+                    )
+                },
+                onDismiss = { pendingContext = null }
+            )
+        }
+    }
 
     // ── 替换输入 Sheet ──
     ReaderReplaceInputSheet(
@@ -9862,6 +9909,7 @@ private fun SelectionMenuOverlay(
     onUnderline: () -> Unit = {},
     onNote: () -> Unit,
     onExcerpt: () -> Unit,
+    onContext: () -> Unit,
     onSearch: () -> Unit,
     onWebSearch: () -> Unit,
     onDictionary: () -> Unit,
@@ -9922,6 +9970,7 @@ private fun SelectionMenuOverlay(
                 SelectionMenuAction.NOTE -> if (state.hasNote) onViewNote else onNote
                 SelectionMenuAction.DICTIONARY -> onDictionary
                 SelectionMenuAction.EXCERPT -> onExcerpt
+                SelectionMenuAction.CONTEXT -> onContext
                 SelectionMenuAction.SEARCH -> onSearch
                 SelectionMenuAction.WEB_SEARCH -> onWebSearch
                 SelectionMenuAction.COPY -> onCopy

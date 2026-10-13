@@ -60,6 +60,7 @@ internal fun SelectionMenuAction.labelRes(): Int = when (this) {
     SelectionMenuAction.NOTE -> R.string.menu_note
     SelectionMenuAction.DICTIONARY -> R.string.menu_dictionary
     SelectionMenuAction.EXCERPT -> R.string.excerpt_title
+    SelectionMenuAction.CONTEXT -> R.string.selection_context
     SelectionMenuAction.SEARCH -> R.string.menu_search
     SelectionMenuAction.WEB_SEARCH -> R.string.menu_web_search
     SelectionMenuAction.COPY -> R.string.menu_copy
@@ -228,6 +229,7 @@ private fun SelectionMenuAction.icon(): ImageVector = when (this) {
     SelectionMenuAction.NOTE -> AppIcons.PencilSimple
     SelectionMenuAction.DICTIONARY -> AppIcons.BookOpen
     SelectionMenuAction.EXCERPT -> AppIcons.Cards
+    SelectionMenuAction.CONTEXT -> AppIcons.BookOpenText
     SelectionMenuAction.SEARCH -> AppIcons.MagnifyingGlass
     SelectionMenuAction.WEB_SEARCH -> AppIcons.Globe
     SelectionMenuAction.COPY -> AppIcons.FileText

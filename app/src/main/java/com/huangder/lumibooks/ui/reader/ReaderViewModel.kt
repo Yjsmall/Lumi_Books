@@ -5523,10 +5523,11 @@ class ReaderViewModel @Inject constructor(
         endLocatorJson: String? = null,
         type: String = "highlight",
         isNote: Boolean = noteText.isNotBlank(),
-        tags: List<String> = emptyList()
+        tags: List<String> = emptyList(),
+        onSaved: (Boolean) -> Unit = {}
     ): String? {
         val state = _uiState.value
-        val book = state.book ?: return null
+        val book = state.book ?: run { onSaved(false); return null }
         val syncId = java.util.UUID.randomUUID().toString()
         val resolvedChapterIndex = if (chapterIndex >= 0) chapterIndex else state.currentChapterIndex
         val note = Note(
@@ -5550,6 +5551,7 @@ class ReaderViewModel @Inject constructor(
         _notes.value = _notes.value + note
         refreshReaderNotes(_notes.value)
         viewModelScope.launch {
+            var saved = false
             try {
                 val noteToSave = if (
                     book.format.name == "EPUB" &&
@@ -5582,6 +5584,7 @@ class ReaderViewModel @Inject constructor(
                     refreshReaderNotes(_notes.value)
                 }
                 readingRepository.insertNote(noteToSave)
+                saved = true
             } catch (_: Exception) {
                 _notes.value = _notes.value.filterNot { existing ->
                     existing === note || (
@@ -5592,6 +5595,7 @@ class ReaderViewModel @Inject constructor(
                 }
                 refreshReaderNotes(_notes.value)
             }
+            onSaved(saved)
         }
         return syncId
     }
@@ -5964,6 +5968,25 @@ class ReaderViewModel @Inject constructor(
             val text = getChapterText(note.chapterIndex)
             resolveReaderNoteNavigation(note, text)
         }
+    }
+
+    internal suspend fun getSelectionContext(
+        chapterIndex: Int,
+        startPosition: Int,
+        endPosition: Int,
+        selectedText: String,
+        startLocatorJson: String?,
+        endLocatorJson: String?
+    ): String? = withContext(Dispatchers.IO) {
+        val text = getChapterText(chapterIndex) ?: return@withContext null
+        val range = HighlightAnchorResolver.resolve(
+            chapterText = text,
+            storedStart = startPosition,
+            storedEnd = endPosition,
+            selectedText = selectedText,
+            reference = parseHighlightTextReference(startLocatorJson, endLocatorJson, selectedText)
+        ) ?: return@withContext null
+        extractSelectionContext(text, range.start, range.end)
     }
 
     internal fun resolveAnnotationSelection(
