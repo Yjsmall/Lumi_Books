@@ -17,11 +17,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.huangder.lumibooks.ui.theme.LiquidGlassMaterial
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawPlainBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.effect
-import com.kyant.backdrop.effects.vibrancy
 
 /** Scoped to the menu so arbitrary paths never reach Backdrop's rounded-rectangle lens. */
 @Composable
@@ -50,15 +50,14 @@ internal fun LiquidMenuSurface(
     )
     // A light veil above the sampled backdrop softens background lettering while
     // preserving the glass tint. Foreground menu text is drawn after this layer.
-    val scrim = baseColor.copy(alpha = if (isDark) 0.36f else 0.28f)
+    val scrim = LiquidGlassMaterial.surfaceTint(baseColor, menuTransparency)
     val contrastScrim = liquidGlassContrastScrim(LocalLiquidGlassContrastEnabled.current, baseColor)
     val surface = if (backdrop != null) {
         Modifier.drawPlainBackdrop(
             backdrop = backdrop,
             shape = shape,
             effects = {
-                vibrancy()
-                blur((6.dp * (1f - menuTransparency)).toPx())
+                blur(LiquidGlassMaterial.blurRadius(menuTransparency).toPx())
                 if (Build.VERSION.SDK_INT >= 33) {
                     optics?.effect(frame(), padding, density, content = false)?.let { effect(it) }
                 }
@@ -69,7 +68,7 @@ internal fun LiquidMenuSurface(
             }
         )
     } else {
-        Modifier.background(baseColor.copy(alpha = 0.92f)).background(contrastScrim)
+        Modifier.background(scrim).background(contrastScrim)
     }
     Box(
         modifier.graphicsLayer {
@@ -107,7 +106,7 @@ internal class LiquidMenuOptics {
         shader.setFloatUniform("neck", frame.neck)
         shader.setFloatUniform("side", frame.nearX, frame.nearY)
         shader.setFloatUniform("band", (if (content) 28f else 16f + 4f * frame.distortion) * density)
-        shader.setFloatUniform("amount", (if (content) 17f * frame.distortion else 24f + 9f * frame.distortion) * density)
+        shader.setFloatUniform("amount", (if (content) 17f * frame.distortion else 4f + 15f * frame.distortion) * density)
         shader.setFloatUniform("warpContent", if (content) frame.distortion else 0f)
         shader.setFloatUniform("surfaceLens", if (content) 0f else 1f)
         return RenderEffect.createRuntimeShaderEffect(shader, "content")

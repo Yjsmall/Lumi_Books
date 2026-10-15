@@ -124,7 +124,7 @@ object AppColors {
     val PageBg: Color @Composable get() = if (LocalLumiBackgroundPresent.current) Color.Transparent else WindowBg
     val CardBg: Color @Composable get() = if (LocalEInkMode.current) Color.White else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.surfaceContainerLow else if (LocalIsDarkTheme.current) DarkCardBg else LightCardBg
     val TextPrimary: Color @Composable get() = if (LocalEInkMode.current) Color.Black else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.onBackground else if (LocalIsDarkTheme.current) DarkTextPrimary else LightTextPrimary
-    val TextSecondary: Color @Composable get() = if (LocalEInkMode.current) Color(0xFF444444) else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.onSurfaceVariant else if (LocalIsDarkTheme.current) DarkTextSecondary else LightTextSecondary
+    val TextSecondary: Color @Composable get() = if (LocalEInkMode.current) Color(0xFF444444) else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.onSurfaceVariant else if (LocalAppTheme.current == "liquid_glass") LiquidGlassMaterial.secondaryTextColor(LocalIsDarkTheme.current) else if (LocalIsDarkTheme.current) DarkTextSecondary else LightTextSecondary
     val BgGray: Color @Composable get() = if (LocalEInkMode.current) Color(0xFFF4F4F4) else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.surfaceVariant else if (LocalIsDarkTheme.current) DarkBgGray else LightBgGray
     val Divider: Color @Composable get() = if (LocalEInkMode.current) Color(0xFFBDBDBD) else if (LocalUseMaterial3Theme.current) MaterialTheme.colorScheme.outlineVariant else if (LocalIsDarkTheme.current) DarkDivider else LightDivider
 }

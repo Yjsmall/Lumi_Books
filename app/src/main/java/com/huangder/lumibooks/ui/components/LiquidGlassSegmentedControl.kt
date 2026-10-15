@@ -51,12 +51,12 @@ import androidx.compose.ui.unit.dp
 import com.huangder.lumibooks.ui.theme.LocalIsDarkTheme
 import com.huangder.lumibooks.ui.theme.LocalLiquidGlassTransparency
 import com.huangder.lumibooks.ui.theme.LocalMotionEnabled
+import com.huangder.lumibooks.ui.theme.LiquidGlassMaterial
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -327,19 +327,16 @@ fun LiquidGlassSegmentedControl(
     } else {
         Color.Black.copy(alpha = 0.07f)
     }
-    val trackScrim = if (isDark) {
-        Color(0xFF161618).copy(alpha = 0.44f - transparency * 0.18f)
-    } else {
-        Color.White.copy(alpha = 0.48f - transparency * 0.20f)
-    }
+    val trackScrim = LiquidGlassMaterial.surfaceTint(
+        if (isDark) Color(0xFF161618) else Color.White, transparency, contentSurface = false
+    )
     val trackVisual = if (backdrop != null) {
         Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = { trackShape },
             effects = {
-                vibrancy()
-                if (transparency < 1f) blur((6.dp * (1f - transparency)).toPx())
-                lens(10.dp.toPx(), 18.dp.toPx())
+                blur(LiquidGlassMaterial.blurRadius(transparency).toPx())
+                lens(2.dp.toPx(), 4.dp.toPx())
             },
             highlight = { liquidGlassHighlight() },
             exportedBackdrop = trackSurfaceBackdrop,

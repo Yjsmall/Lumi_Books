@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.huangder.lumibooks.ui.theme.AppColors
 import com.huangder.lumibooks.ui.theme.LocalIsDarkTheme
+import com.huangder.lumibooks.ui.theme.LocalAppTheme
+import com.huangder.lumibooks.ui.theme.LocalLiquidGlassTransparency
+import com.huangder.lumibooks.ui.theme.LiquidGlassMaterial
 import com.huangder.lumibooks.ui.theme.LocalLumiBackgroundBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -21,12 +24,15 @@ fun Modifier.lumiCardSurface(
     controlEdge: Boolean = false
 ): Modifier {
     val backdrop = LocalLumiBackgroundBackdrop.current ?: return background(color, shape)
-    val tint = if (LocalIsDarkTheme.current) Color(0xFF151518).copy(alpha = 0.42f)
+    val glass = LocalAppTheme.current == "liquid_glass"
+    val transparency = LocalLiquidGlassTransparency.current
+    val tint = if (glass) LiquidGlassMaterial.surfaceTint(color, transparency)
+        else if (LocalIsDarkTheme.current) Color(0xFF151518).copy(alpha = 0.42f)
         else Color.White.copy(alpha = 0.42f)
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
-        effects = { blur(8.dp.toPx()) },
+        effects = { blur(if (glass) LiquidGlassMaterial.blurRadius(transparency).toPx() else 8.dp.toPx()) },
         highlight = null,
         onDrawSurface = { drawRect(tint) }
     ).then(

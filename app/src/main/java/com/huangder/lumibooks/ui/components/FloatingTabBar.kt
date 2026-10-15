@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import com.huangder.lumibooks.ui.theme.AppRoundedCornerShape
+import com.huangder.lumibooks.ui.theme.LiquidGlassMaterial
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -101,7 +102,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import dev.chrisbanes.haze.HazeState
@@ -203,22 +203,11 @@ fun FloatingTabBar(
     } else {
         horizontalPadding
     }
-    val glassBrush = if (isLiquidGlass && isDark) {
-        val alpha = 0.42f - transparency * 0.24f
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF2C2C2E).copy(alpha = alpha + 0.10f),
-                Color(0xFF111113).copy(alpha = alpha)
-            )
-        )
-    } else if (isLiquidGlass) {
-        val alpha = 0.42f - transparency * 0.24f
-        Brush.verticalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = alpha + 0.12f),
-                Color(0xFFEAF6FF).copy(alpha = alpha)
-            )
-        )
+    val liquidSurfaceColor = LiquidGlassMaterial.surfaceTint(
+        if (isDark) Color(0xFF121214) else Color.White, transparency, contentSurface = false
+    )
+    val glassBrush = if (isLiquidGlass) {
+        SolidColor(liquidSurfaceColor)
     } else if (isDark) {
         // The default bar uses a uniform translucent surface; the liquid glass
         // theme above owns the directional shading and refraction effects.
@@ -242,7 +231,7 @@ fun FloatingTabBar(
                 )
             )
             blurRadius = if (isLiquidGlass) {
-                10.dp * (1f - transparency)
+                LiquidGlassMaterial.blurRadius(transparency)
             } else {
                 36.dp
             }
@@ -252,11 +241,6 @@ fun FloatingTabBar(
             )
         }
     } ?: Modifier
-    val liquidSurfaceColor = if (isDark) {
-        Color(0xFF121214).copy(alpha = 0.34f - transparency * 0.16f)
-    } else {
-        Color.White.copy(alpha = 0.38f - transparency * 0.20f)
-    }
     val tabsBackdrop = rememberLayerBackdrop()
     val combinedTabsBackdrop = if (isLiquidGlass && liquidGlassBackdrop != null) {
         rememberCombinedBackdrop(liquidGlassBackdrop, tabsBackdrop)
@@ -268,11 +252,8 @@ fun FloatingTabBar(
             backdrop = liquidGlassBackdrop,
             shape = { glassShape },
             effects = {
-                vibrancy()
-                if (transparency < 1f) {
-                    blur((6.dp * (1f - transparency)).toPx())
-                }
-                lens(16.dp.toPx(), 28.dp.toPx())
+                blur(LiquidGlassMaterial.blurRadius(transparency).toPx())
+                lens(2.dp.toPx(), 4.dp.toPx())
             },
             highlight = if (LocalLiquidGlassControlEdgeEnabled.current) null else { { liquidGlassHighlight() } },
             onDrawSurface = { drawRect(liquidSurfaceColor) }
@@ -418,18 +399,16 @@ fun FloatingTabBar(
                     .then(outerOutlineModifier)
                     .then(if (isLiquidGlass) interactiveHighlight.modifier else Modifier)
             ) {
-            // A translucent tonal veil keeps the bar readable over changing content;
-            // the prism remains a separate, brighter layer above it.
+            // Glass already includes its readability tint, also used by the capture
+            // below. Only the legacy bar needs this additional tonal veil.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(glassShape)
                     .background(
                         tabMaskColor.copy(
-                            alpha = (
-                                (if (isLiquidGlass) 0.30f else 0.20f) * (1f - toneProgress) +
-                                    (if (isLiquidGlass) 0.24f else 0.16f) * toneProgress
-                                )
+                            alpha = if (isLiquidGlass) 0f else
+                                0.20f * (1f - toneProgress) + 0.16f * toneProgress
                         )
                     )
             )
@@ -465,15 +444,8 @@ fun FloatingTabBar(
                             backdrop = liquidGlassBackdrop,
                             shape = { glassShape },
                             effects = {
-                                val progress = dragState.pressProgress
-                                vibrancy()
-                                if (transparency < 1f) {
-                                    blur((6.dp * (1f - transparency)).toPx())
-                                }
-                                lens(
-                                    16.dp.toPx() * progress,
-                                    20.dp.toPx() * progress
-                                )
+                                blur(LiquidGlassMaterial.blurRadius(transparency).toPx())
+                                lens(2.dp.toPx(), 4.dp.toPx())
                             },
                             highlight = null,
                             onDrawSurface = { drawRect(liquidSurfaceColor) }
@@ -608,18 +580,9 @@ fun LiquidGlassImportButton(
 ) {
     val isDark = LocalIsDarkTheme.current
     val transparency = LocalLiquidGlassTransparency.current
-    val baseSurfaceAlpha = if (isDark) {
-        0.34f - transparency * 0.16f
-    } else {
-        0.38f - transparency * 0.20f
-    }
-    val maskAlpha = if (isDark) 0.24f else 0.30f
-    val combinedSurfaceAlpha = 1f - (1f - baseSurfaceAlpha) * (1f - maskAlpha)
-    val surfaceColor = if (isDark) {
-        Color.Black.copy(alpha = combinedSurfaceAlpha)
-    } else {
-        Color.White.copy(alpha = combinedSurfaceAlpha)
-    }
+    val surfaceColor = LiquidGlassMaterial.surfaceTint(
+        if (isDark) Color(0xFF121214) else Color.White, transparency, contentSurface = false
+    )
     val contentColor = if (isDark) Color.White.copy(alpha = 0.92f) else Color(0xFF17171A)
 
     LiquidGlassSurface(
