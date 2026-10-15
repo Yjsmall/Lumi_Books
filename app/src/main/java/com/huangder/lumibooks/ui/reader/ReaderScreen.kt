@@ -4858,6 +4858,7 @@ fun ReaderScreen(
         key(selection) {
             SelectionContextDialog(
                 selectedText = selection.selectedText,
+                backdrop = activeReaderGlassBackdrop,
                 loadContext = {
                     viewModel.getSelectionContext(selection.chapterIndex, selection.startPosition,
                         selection.endPosition, selection.selectedText, selection.startLocatorJson, selection.endLocatorJson)

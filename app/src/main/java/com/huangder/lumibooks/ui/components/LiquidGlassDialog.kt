@@ -44,6 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.dialog
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -159,6 +162,9 @@ fun LiquidGlassDialogHost(
         Box(modifier = modifier) {
             Box(
                 modifier = Modifier.fillMaxSize()
+                    // Hosted dialogs share the page's Compose tree. Keep TalkBack on the
+                    // modal surface until its exit finishes, as a platform Dialog would.
+                    .then(if (currentSpec != null) Modifier.clearAndSetSemantics { } else Modifier)
             ) {
                 content()
             }
@@ -275,6 +281,7 @@ fun LiquidGlassDialogHost(
                                         interactive = false,
                                         modifier = Modifier
                                             .widthIn(max = 560.dp)
+                                            .semantics { dialog() }
                                             .then(targetSpec.modifier)
                                             .fillMaxWidth()
                                             .clickable(

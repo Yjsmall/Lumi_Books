@@ -2,9 +2,15 @@ package com.huangder.lumibooks.ui.reader
 
 import android.app.Application
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.huangder.lumibooks.R
+import com.huangder.lumibooks.ui.components.LiquidGlassDialogHost
+import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -53,5 +59,35 @@ class SelectionContextDialogTest {
         }
         compose.onNodeWithText(context.getString(R.string.selection_context_unavailable)).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.selection_context_save)).assertIsNotEnabled()
+    }
+
+    @Test fun glassPreviewIsModalAndRestoresReaderAfterDismissal() {
+        val context = RuntimeEnvironment.getApplication()
+        val visible = mutableStateOf(true)
+        compose.setContent {
+            MaterialTheme {
+                CompositionLocalProvider(LocalAppTheme provides "liquid_glass") {
+                    LiquidGlassDialogHost {
+                        Text("Reader content")
+                        if (visible.value) {
+                            SelectionContextDialog("word", { "A word in its paragraph." },
+                                onSave = { _, _ -> fail("Cancel must not save") },
+                                onDismiss = { visible.value = false })
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNode(isDialog()).assertExists().assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "word")
+        )
+        compose.onNodeWithText("Reader content").assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.cancel)).performClick()
+        compose.waitUntil { !visible.value }
+        // The shared host retains the outgoing surface for its exit animation.
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNode(isDialog()).assertDoesNotExist()
+        compose.onNodeWithText("Reader content").assertIsDisplayed()
     }
 }
