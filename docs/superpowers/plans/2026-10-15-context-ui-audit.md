@@ -36,3 +36,11 @@ Before this UI change, full `:app:testDebugUnitTest` ran 1616 tests with one fai
 - Installed the main ARM64 Debug APK in place on V2545A (Android 17) on 2026-10-15 and launched successfully, retaining existing app data.
 - Captured the live Context card with its selected word, source sentence, contextual meaning and automatic-save status. The user reported that current behavior works normally.
 - Device screenshots are in `app/build/reports/device-context/`. Hardware optics and performance were not quantitatively assessed.
+
+## Glass emulator follow-up
+
+- Tested the main x86_64 Debug APK on `Medium_Phone_API_36` (1080×2400), using a disposable read-only emulator session. Checked light/dark glass, clarity slider endpoints (0% and 100%) and intermediate values, book menus, settings dropdowns/scrolling, reader Context cards, card scrolling and Back dismissal.
+- Found a cold first-open defect in saved Context notes from the bookshelf: data loaded, but the hosted card retained its initial loading state. The card now reads the latest `ContextState` inside its rendering subcomposition; content, save status and action availability derive from that state together.
+- Two focused regressions cover a result arriving before the first card frame and after the loading card appears. The early-result test fails against the previous implementation. Final `SelectionContextDialogTest` and `SelectionContextCardTest`: 20 passed, no failures or skips; `:app:assembleDebug` also passed. No full suite was run for this follow-up.
+- Installed the final APK and verified the first bookshelf-note opening in both light and dark modes at 100% clarity. Original sentence, contextual meaning, translation, grammar and saved status display immediately. Final screenshots: `app/build/reports/emulator-glass/final-context-light.png` and `final-context-dark.png`; scoped build/test evidence: `context-final-verification.log` in the same directory.
+- A read-only review found no blocking issues. Tests used a synthetic saved note without calling an AI service; emulator checks do not establish physical-device optics or performance.

@@ -64,8 +64,7 @@ internal fun SelectionContextDialog(
 ) {
     val title = stringResource(R.string.selection_context)
     var menuHost by remember { mutableStateOf<LiquidGlassMenuHostState?>(null) }
-    val document = state.document
-    val busy = state.loadingParts.isNotEmpty()
+    val currentState by rememberUpdatedState(state)
     LiquidGlassDialog(
         onDismissRequest = { if (menuHost?.activeMenu != null) menuHost?.dismiss() else onDismiss() },
         modifier = Modifier.semantics { paneTitle = title },
@@ -73,6 +72,11 @@ internal fun SelectionContextDialog(
         shape = AppRoundedCornerShape(AppRadius.xl)
     ) {
         LiquidGlassMenuHost(Modifier.fillMaxWidth(), backdrop = backdrop, sizeToContent = true) {
+            // Read when the hosted card is rendered, including its first layout pass.
+            // Capturing the initial state can leave the overlay showing stale loading UI.
+            val dialogState = currentState
+            val document = dialogState.document
+            val busy = dialogState.loadingParts.isNotEmpty()
             val host = LocalLiquidGlassMenuHost.current
             SideEffect { menuHost = host }
             Column(
@@ -91,17 +95,17 @@ internal fun SelectionContextDialog(
                     LiquidGlassIconButton(AppIcons.X, stringResource(R.string.reader_close), onDismiss,
                         size = 44.dp, normalContainerColor = AppColors.BgGray)
                 }
-                ContextContent(state, onRetry, Modifier.weight(1f, fill = false).fillMaxWidth())
+                ContextContent(dialogState, onRetry, Modifier.weight(1f, fill = false).fillMaxWidth())
                 if (document != null) {
-                    ContextSaveStatus(state, onRetrySave)
+                    ContextSaveStatus(dialogState, onRetrySave)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppSpace.sm)) {
                         LiquidGlassTextButton(
                             if (document.has(ContextPart.BASIC)) stringResource(R.string.context_regenerate_basic)
                             else stringResource(R.string.context_analyze),
                             modifier = Modifier.weight(1f), onClick = { onAnalyze(ContextPart.BASIC) },
-                            enabled = state.configured && !busy
+                            enabled = dialogState.configured && !busy
                         )
-                        ContextAnalysisMenu(document, state.configured && !busy, onAnalyze, Modifier.weight(1f))
+                        ContextAnalysisMenu(document, dialogState.configured && !busy, onAnalyze, Modifier.weight(1f))
                     }
                 }
             }

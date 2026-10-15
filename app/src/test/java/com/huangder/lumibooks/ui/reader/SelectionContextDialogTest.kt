@@ -3,6 +3,8 @@ package com.huangder.lumibooks.ui.reader
 import android.app.Application
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -12,6 +14,7 @@ import com.huangder.lumibooks.R
 import com.huangder.lumibooks.translation.ContextDocument
 import com.huangder.lumibooks.translation.ContextState
 import com.huangder.lumibooks.ui.components.LiquidGlassDialogHost
+import com.huangder.lumibooks.ui.components.LiquidGlassMenuHost
 import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import org.junit.Assert.*
 import org.junit.Rule
@@ -44,7 +47,7 @@ class SelectionContextDialogTest {
         compose.setContent {
             MaterialTheme {
                 CompositionLocalProvider(LocalAppTheme provides "liquid_glass") {
-                    LiquidGlassDialogHost {
+                    LiquidGlassDialogHost(Modifier.fillMaxSize()) {
                         Text("Reader content")
                         if (visible.value) {
                             SelectionContextDialog(ContextState(document = ContextDocument("word", "A word in its paragraph.")),
@@ -66,5 +69,41 @@ class SelectionContextDialogTest {
         compose.waitForIdle()
         compose.onNode(isDialog()).assertDoesNotExist()
         compose.onNodeWithText("Reader content").assertIsDisplayed()
+    }
+
+    @Test fun alreadyOpenGlassCardShowsSavedContextAfterDeferredLoading() = verifyDeferredLoad(false)
+
+    @Test fun savedContextArrivingBeforeFirstGlassFrameIsDisplayed() = verifyDeferredLoad(true)
+
+    private fun verifyDeferredLoad(beforeFirstFrame: Boolean) {
+        if (beforeFirstFrame) compose.mainClock.autoAdvance = false
+        val context = RuntimeEnvironment.getApplication()
+        val document = ContextDocument("bank", "He sat on the bank.", "河岸", "他坐在河岸上。")
+        val state = mutableStateOf(ContextState(loading = true))
+        compose.setContent {
+            MaterialTheme {
+                CompositionLocalProvider(LocalAppTheme provides "liquid_glass") {
+                    LiquidGlassDialogHost(Modifier.fillMaxSize()) {
+                        // BookNotesScreen publishes its dialog from this layout subcomposition.
+                        LiquidGlassMenuHost(Modifier.fillMaxSize()) {
+                            Text("Book notes page")
+                            SelectionContextDialog(state.value, onAnalyze = {}, onRetry = {}, onRetrySave = {},
+                                onSettings = {}, onDismiss = {})
+                        }
+                    }
+                }
+            }
+        }
+        if (!beforeFirstFrame) {
+            compose.onNodeWithText(context.getString(R.string.selection_context_loading)).assertIsDisplayed()
+        }
+        compose.runOnIdle { state.value = ContextState(document = document, saved = true) }
+        // Resume frames and layout together after delivering the early result.
+        // Advancing only virtual time does not run Android layout subcompositions.
+        if (beforeFirstFrame) compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNodeWithText(document.sentence).assertIsDisplayed()
+        compose.onNodeWithText(document.meaning!!).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.selection_context_loading)).assertDoesNotExist()
     }
 }
