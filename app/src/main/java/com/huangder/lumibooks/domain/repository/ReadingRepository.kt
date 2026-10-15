@@ -24,6 +24,12 @@ interface ReadingRepository {
     suspend fun deleteAllBookmarksByBookId(bookId: String)
     fun getNotesByBookId(bookId: String): Flow<List<Note>>
     suspend fun insertNote(note: Note)
+    /**
+     * Saves context content and returns its persisted identity. Drafts require a stable nonblank
+     * syncId for retries. Existing annotations retain tags, anchors, source and style; deleted
+     * annotations or mismatched identities fail instead of creating a replacement.
+     */
+    suspend fun saveContextNote(note: Note): Note
     suspend fun updateNote(note: Note)
     suspend fun updateNoteTags(note: Note, tags: List<String>)
     fun observeAnnotationTags(): Flow<List<String>>

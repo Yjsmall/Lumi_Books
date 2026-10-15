@@ -127,6 +127,28 @@ class ReadingRepositoryImpl @Inject constructor(
         noteDao.updateNote(note.copy(updatedAt = System.currentTimeMillis()).toEntity())
     }
 
+    override suspend fun saveContextNote(note: Note): Note = database.withTransaction {
+        require(note.id >= 0L) { "Invalid context note id" }
+        require(note.syncId.isNotBlank()) { "Context notes require a stable syncId" }
+        val current = if (note.id > 0L) {
+            checkNotNull(noteDao.getById(note.id)) { "Context note was deleted" }
+        } else {
+            noteDao.getBySyncId(note.syncId)
+        }
+        if (current != null) {
+            check(current.syncId == note.syncId && current.bookId == note.bookId) { "Context note identity changed" }
+            val updatedAt = maxOf(System.currentTimeMillis(), current.updatedAt + 1)
+            check(noteDao.updateContextNote(current.id, note.note, note.contextJson, updatedAt) == 1) {
+                "Context note was deleted"
+            }
+            checkNotNull(noteDao.getById(current.id)).toDomain()
+        } else {
+            val entity = note.copy(isNote = true, updatedAt = maxOf(System.currentTimeMillis(), note.updatedAt)).toEntity()
+            val id = noteDao.insertContextNote(entity)
+            entity.copy(id = id).toDomain()
+        }
+    }
+
     override suspend fun updateNoteTags(note: Note, tags: List<String>) {
         if (note.id > 0L) noteDao.updateTags(note.id, AnnotationTags.encode(tags), System.currentTimeMillis())
     }
@@ -323,7 +345,8 @@ class ReadingRepositoryImpl @Inject constructor(
             sourceRuleId = sourceRuleId,
             sourceMatchKey = sourceMatchKey,
             styleSnapshotJson = styleSnapshotJson,
-            tags = AnnotationTags.decode(tagsJson)
+            tags = AnnotationTags.decode(tagsJson),
+            contextJson = contextJson
         )
     }
 
@@ -348,7 +371,8 @@ class ReadingRepositoryImpl @Inject constructor(
             sourceRuleId = sourceRuleId,
             sourceMatchKey = sourceMatchKey,
             styleSnapshotJson = styleSnapshotJson,
-            tagsJson = AnnotationTags.encode(tags)
+            tagsJson = AnnotationTags.encode(tags),
+            contextJson = contextJson
         )
     }
 }

@@ -2,10 +2,20 @@ package com.huangder.lumibooks.domain.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class AnnotationNoteEditPlannerTest {
     private val chapterText = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+    @Test fun splittingAContextAnnotationRetainsMetadataOnlyWithItsNoteBody() {
+        val original = note(7, 10, 30, noteText = "Saved context").copy(contextJson = "{\"source\":\"original\"}")
+        val plan = AnnotationNoteEditPlanner.removeRange(listOf(original), chapterText, "book", 2, 15, 20, "underline")
+        assertEquals("{\"source\":\"original\"}", plan.updates.single().contextJson)
+        assertNull(plan.inserts.single().contextJson)
+        assertFalse(plan.inserts.single().isNoteEntry)
+    }
 
     private fun note(
         id: Long,

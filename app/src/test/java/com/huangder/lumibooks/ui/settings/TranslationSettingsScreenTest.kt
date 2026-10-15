@@ -7,6 +7,8 @@ import android.view.View
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -14,6 +16,8 @@ import com.huangder.lumibooks.domain.model.MenuAnimationStyle
 import com.huangder.lumibooks.translation.*
 import com.huangder.lumibooks.ui.theme.*
 import java.io.File
+import org.json.JSONObject
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,24 +33,36 @@ class TranslationSettingsScreenTest {
     private lateinit var view: View
     private val modelCatalog = mutableStateOf<TranslationModelCatalog>(TranslationModelCatalog.Idle)
 
-    private fun mount(dark: Boolean = false, restoration: StateRestorationTester? = null) {
+    private fun mount(
+        dark: Boolean = false,
+        restoration: StateRestorationTester? = null,
+        action: TranslationSettingsAction = TranslationSettingsAction(),
+        onSave: (TranslationSettings, String) -> Unit = { _, _ -> },
+        onConnectionEdited: () -> Unit = {},
+        theme: String = "lumi",
+        eink: Boolean = false
+    ) {
         val content: @androidx.compose.runtime.Composable () -> Unit = {
             view = LocalView.current
-            CompositionLocalProvider(LocalMotionEnabled provides true, LocalAppTheme provides "lumi",
+            CompositionLocalProvider(LocalMotionEnabled provides !eink, LocalAppTheme provides theme, LocalEInkMode provides eink,
                 LocalIsDarkTheme provides dark, LocalMenuAnimationStyle provides MenuAnimationStyle.LIQUID) {
                 DetailPage("AI translation", {}) {
                     TranslationSettingsContent(
                         TranslationConfiguration(TranslationSettings(model = "saved-model"), false),
-                        TranslationSettingsAction(), { _, _ -> }, { _, _ -> }, {},
+                        action, onSave, { _, _ -> }, {},
                         modelCatalog.value,
                         onFetchModels = { _, _ -> modelCatalog.value = TranslationModelCatalog.Ready(listOf("model-a", "model-b")) },
-                        onConnectionEdited = { modelCatalog.value = TranslationModelCatalog.Idle })
+                        onConnectionEdited = {
+                            modelCatalog.value = TranslationModelCatalog.Idle
+                            onConnectionEdited()
+                        })
                 }
             }
         }
         if (restoration == null) compose.setContent(content) else restoration.setContent(content)
         compose.waitForIdle()
-        save(if (dark) "settings-dark" else "settings-lumi")
+        // Switch target tests exercise glass semantics; a bitmap Canvas cannot execute its RuntimeShader.
+        if (theme != "liquid_glass") save(if (dark) "settings-dark" else "settings-lumi")
     }
 
     private fun save(name: String) {
@@ -58,6 +74,20 @@ class TranslationSettingsScreenTest {
             file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
         }
+    }
+
+    @Test fun glassContextSwitchRowsHaveAccessibleTargets() = checkContextRowTargets("liquid_glass", false)
+
+    @Test fun einkContextSwitchRowsHaveAccessibleTargets() = checkContextRowTargets("lumi", true)
+
+    private fun checkContextRowTargets(theme: String, eink: Boolean) {
+        mount(theme = theme, eink = eink)
+        val grammar = compose.onNodeWithContentDescription("Grammar analysis").performScrollTo()
+        grammar.assertHeightIsAtLeast(44.dp).assertWidthIsAtLeast(44.dp)
+        grammar.performClick().assertIsOn()
+        grammar.performClick().assertIsOff()
+        val trackCenterInset = with(compose.density) { 29.dp.toPx() }
+        grammar.performTouchInput { click(Offset(width - trackCenterInset, center.y)) }.assertIsOn()
     }
 
     @Test fun providerUsesLumiMenuAndUpdatesEndpoint() {
@@ -107,5 +137,47 @@ class TranslationSettingsScreenTest {
         compose.onNodeWithContentDescription("Choose model").assertIsDisplayed()
         compose.onNodeWithTag("translation-base-url").performTextReplacement("https://another.example/v1")
         compose.onNodeWithContentDescription("Choose model").assertDoesNotExist()
+    }
+
+    @Test fun contextOptionsCanBeSavedIndependentlyWithoutEditingConnection() {
+        var saved: JSONObject? = null
+        var connectionEdits = 0
+        mount(onSave = { settings, _ -> saved = JSONObject(settings.toJson()) },
+            onConnectionEdited = { connectionEdits++ })
+
+        val grammar = compose.onNodeWithContentDescription("Grammar analysis")
+        val vocabulary = compose.onNodeWithContentDescription("Vocabulary collection")
+        grammar.performScrollTo().assertIsOff().performClick().assertIsOn()
+        vocabulary.performScrollTo().assertIsOff()
+        save("context-settings-lumi")
+        compose.onNodeWithText("Save settings").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(true, saved?.opt("contextGrammarEnabled"))
+            assertEquals(false, saved?.opt("contextVocabularyEnabled"))
+        }
+
+        vocabulary.performScrollTo().performClick().assertIsOn()
+        grammar.performScrollTo().performClick().assertIsOff()
+        compose.onNodeWithText("Save settings").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(false, saved?.opt("contextGrammarEnabled"))
+            assertEquals(true, saved?.opt("contextVocabularyEnabled"))
+            assertEquals(0, connectionEdits)
+        }
+    }
+
+    @Test fun contextOptionsRemainInRestoredNonsecretDraft() {
+        val restoration = StateRestorationTester(compose)
+        mount(restoration = restoration)
+        compose.onNodeWithContentDescription("Grammar analysis").performScrollTo().performClick()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithContentDescription("Grammar analysis").performScrollTo().assertIsOn()
+        compose.onNodeWithContentDescription("Vocabulary collection").performScrollTo().assertIsOff()
+    }
+
+    @Test fun contextOptionsCannotBeEditedDuringAnActiveSettingsAction() {
+        mount(action = TranslationSettingsAction(busy = true))
+        compose.onNodeWithContentDescription("Grammar analysis").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Vocabulary collection").performScrollTo().assertIsNotEnabled()
     }
 }

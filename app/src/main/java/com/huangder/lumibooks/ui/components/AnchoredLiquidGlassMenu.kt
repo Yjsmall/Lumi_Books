@@ -103,6 +103,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -560,6 +561,8 @@ private fun MenuOverlayBackHandler(enabled: Boolean, onBack: () -> Unit) {
 fun LiquidGlassMenuHost(
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = LocalLiquidGlassBackdrop.current,
+    /** Content-measured dialogs keep their size when a menu overlay appears. */
+    sizeToContent: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
     val hostState = remember { LiquidGlassMenuHostState() }
@@ -587,6 +590,7 @@ fun LiquidGlassMenuHost(
         (activeMenu?.forceSolid == false || hostState.displayedMenu?.forceSolid == false)
     var hostWindowBounds by remember { mutableStateOf(Rect.Zero) }
     var hostRootOrigin by remember { mutableStateOf(Offset.Zero) }
+    var hostSize by remember { mutableStateOf(IntSize.Zero) }
 
     LaunchedEffect(activeMenu, motionEnabled, liquidTheme) {
         fun motionFor(menu: LiquidGlassMenuSpec): LiquidGlassMenuMotion = when {
@@ -681,12 +685,16 @@ fun LiquidGlassMenuHost(
         CompositionLocalProvider(LocalLiquidGlassMenuHost provides hostState) {
             BoxWithConstraints(
                 modifier = modifier.onGloballyPositioned {
+                    // A platform Dialog can measure provisionally before applying its window width.
+                    // Publish only placed dimensions, avoiding a provisional/final measurement loop.
+                    hostSize = it.size
                     hostWindowBounds = it.boundsInWindow()
                     hostRootOrigin = it.boundsInRoot().topLeft
                 }
             ) {
                 Box(
-                    Modifier.fillMaxSize().then(if (capturePage) Modifier.layerBackdrop(pageBackdrop) else Modifier),
+                    (if (sizeToContent) Modifier.fillMaxWidth() else Modifier.fillMaxSize())
+                        .then(if (capturePage) Modifier.layerBackdrop(pageBackdrop) else Modifier),
                     content = content
                 )
                 val menu = hostState.displayedMenu
@@ -703,9 +711,9 @@ fun LiquidGlassMenuHost(
                     val passThrough = menu.passThroughBounds?.invoke()?.let {
                         LiquidGlassMenuMorph.windowToHost(it, hostWindowBounds.topLeft)
                     }
-                    val hostWidthPx = with(density) { maxWidth.toPx() }
-                    val hostHeightPx = with(density) { maxHeight.toPx() }
-                    Box(Modifier.fillMaxSize(), contentAlignment = AbsoluteAlignment.TopLeft) {
+                    val hostWidthPx = if (sizeToContent) hostSize.width.toFloat() else with(density) { maxWidth.toPx() }
+                    val hostHeightPx = if (sizeToContent) hostSize.height.toFloat() else with(density) { maxHeight.toPx() }
+                    Box(Modifier.matchParentSize(), contentAlignment = AbsoluteAlignment.TopLeft) {
                         MenuDismissLayer(
                             widthPx = hostWidthPx,
                             heightPx = hostHeightPx,

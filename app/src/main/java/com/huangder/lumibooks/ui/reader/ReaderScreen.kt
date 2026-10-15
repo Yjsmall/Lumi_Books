@@ -1865,6 +1865,7 @@ fun ReaderScreen(
     // 🔥 原生选择 ActionMode 回调 → 等待笔记输入
     var pendingSelection by remember { mutableStateOf<PendingSelection?>(null) }
     var pendingContext by remember { mutableStateOf<PendingSelection?>(null) }
+    var savedContextNote by remember { mutableStateOf<com.huangder.lumibooks.domain.model.Note?>(null) }
     var showNoteInput by remember { mutableStateOf(false) }
     var noteInputText by remember { mutableStateOf("") }
 
@@ -1943,7 +1944,7 @@ fun ReaderScreen(
     var requestCloseSearch by remember { mutableStateOf(false) }
 
     // 处理返回键：触发退出动画，而不是直接关闭
-    val isAnySheetOpen = pendingContext != null || excerptRequest != null || localDictionaryQuery != null || annotationTagState.editingTarget != null || showNotesList || showNoteInput || pendingBookmarkRemarkId != null || showToc || showThemeSheet || showHighlightRules ||
+    val isAnySheetOpen = pendingContext != null || savedContextNote != null || excerptRequest != null || localDictionaryQuery != null || annotationTagState.editingTarget != null || showNotesList || showNoteInput || pendingBookmarkRemarkId != null || showToc || showThemeSheet || showHighlightRules ||
         showAdvancedSheet || showSearch || showWebSearch || showTxtEncodingDialog || showTxtTocDialog || showReplaceInput
     val bookmarkPullSupported = (isBookLayout && !isBookLayoutContinuousScroll) ||
         (uiState.useNewEngine && !renderedContinuousScrollMode && !isVerticalWriting)
@@ -4513,6 +4514,9 @@ fun ReaderScreen(
         glassBackdrop = activeReaderGlassBackdrop,
         notes = viewModel.notes.collectAsState().value,
         onNoteClick = noteClick@ { note ->
+            if (note.contextJson != null) {
+                savedContextNote = note
+            }
             if (isBookLayout) {
                 val chapterTextLength = viewModel.getChapterTextLength(note.chapterIndex).coerceAtLeast(1)
                 val chapterHref = epubSession?.chapterHref(note.chapterIndex).orEmpty()
@@ -4685,7 +4689,9 @@ fun ReaderScreen(
             selectionForAction()?.let { selection ->
                 val fresh = if (selection.annotationOnly || isBookLayout || isContinuousScrollMode) null
                     else readViewRef.value?.getSelectionInfo()
-                pendingContext = PendingSelection(
+                if (selection.existingNote?.contextJson != null) {
+                    savedContextNote = selection.existingNote
+                } else pendingContext = PendingSelection(
                     selectedText = fresh?.selectedText ?: selection.selectedText,
                     chapterIndex = fresh?.chapterIndex ?: selection.chapterIndex,
                     startPosition = fresh?.startPosition ?: selection.charStart,
@@ -4763,9 +4769,11 @@ fun ReaderScreen(
             // 🔥 查看/修改笔记：打开 NoteInputSheet 预填原笔记文字
             val existing = selectionForAction()?.existingNote
             if (existing != null) {
-                editingNote = existing
-                noteInputText = existing.note
-                showNoteInput = true
+                if (existing.contextJson != null) savedContextNote = existing else {
+                    editingNote = existing
+                    noteInputText = existing.note
+                    showNoteInput = true
+                }
             }
             selectionState = null
             clearActiveTextSelection()
@@ -4856,32 +4864,29 @@ fun ReaderScreen(
 
     pendingContext?.let { selection ->
         key(selection) {
-            SelectionContextDialog(
-                selectedText = selection.selectedText,
+            val contextNote = remember(selection) {
+                com.huangder.lumibooks.domain.model.Note(
+                    bookId = uiState.book?.id.orEmpty(), chapterIndex = selection.chapterIndex,
+                    startPosition = selection.startPosition, endPosition = selection.endPosition,
+                    startLocatorJson = selection.startLocatorJson, endLocatorJson = selection.endLocatorJson,
+                    selectedText = selection.selectedText, note = "", color = DefaultReaderHighlightColorWithAlpha,
+                    createdAt = System.currentTimeMillis(), isNote = true)
+            }
+            ContextNoteDialog(
+                note = contextNote,
                 backdrop = activeReaderGlassBackdrop,
                 loadContext = {
                     viewModel.getSelectionContext(selection.chapterIndex, selection.startPosition,
                         selection.endPosition, selection.selectedText, selection.startLocatorJson, selection.endLocatorJson)
                 },
-                onSave = { paragraph, onSaved ->
-                    viewModel.addNote(
-                        selectedText = selection.selectedText,
-                        noteText = paragraph,
-                        chapterIndex = selection.chapterIndex,
-                        startPosition = selection.startPosition,
-                        endPosition = selection.endPosition,
-                        color = DefaultReaderHighlightColorWithAlpha,
-                        startLocatorJson = selection.startLocatorJson,
-                        endLocatorJson = selection.endLocatorJson,
-                        isNote = true,
-                        onSaved = { success ->
-                            if (success) Toast.makeText(context, R.string.selection_context_saved, Toast.LENGTH_SHORT).show()
-                            onSaved(success)
-                        }
-                    )
-                },
                 onDismiss = { pendingContext = null }
             )
+        }
+    }
+
+    savedContextNote?.let { note ->
+        key(note.syncId, note.id) {
+            ContextNoteDialog(note = note, backdrop = activeReaderGlassBackdrop, onDismiss = { savedContextNote = null })
         }
     }
 

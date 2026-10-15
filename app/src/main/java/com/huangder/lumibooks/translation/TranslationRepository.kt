@@ -25,20 +25,27 @@ class TranslationRepository @Inject constructor(
     private val store: DataStoreManager,
     private val tokens: TranslationTokenStore,
     private val client: TranslationHttpClient
-) : TranslationSource {
+) : TranslationSource, ContextAnalysisSource {
     private val mutex = Mutex()
     override val configuration: Flow<TranslationConfiguration> = store.translationSettings.map { settings ->
         mutex.withLock { TranslationConfiguration(settings, tokens.hasToken(settings.credentialScope)) }
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     override suspend fun translate(text: String, configuration: TranslationConfiguration): String {
+        return client.translate(configuration.settings, resolveToken(configuration), text)
+    }
+
+    override suspend fun analyzeContext(request: ContextAnalysisRequest, configuration: TranslationConfiguration): ContextAnalysisResult =
+        client.analyzeContext(configuration.settings, resolveToken(configuration), request)
+
+    private suspend fun resolveToken(configuration: TranslationConfiguration): String {
         val token = withContext(Dispatchers.IO) { mutex.withLock {
             if (store.translationSettings.first() != configuration.settings)
                 throw CancellationException("Translation configuration changed")
             tokens.read(configuration.settings.credentialScope)
         } }
             ?: throw TranslationException(TranslationError.MISSING_KEY)
-        return client.translate(configuration.settings, token, text)
+        return token
     }
 
     suspend fun save(settings: TranslationSettings, newToken: String) = withContext(Dispatchers.IO) {

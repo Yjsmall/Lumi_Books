@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="context_sentence">Original sentence</string>
+    <string name="context_meaning">Meaning in this sentence</string>
+    <string name="context_translation">Sentence translation</string>
+    <string name="context_grammar">Grammar analysis</string>
+    <string name="context_vocabulary">Vocabulary collection</string>
+    <string name="context_continue">Continue analysis</string>
+    <string name="context_analyzing">Analyzing…</string>
+    <string name="context_analyze">Explain and translate</string>
+    <string name="context_regenerate">Regenerate %1$s</string>
+    <string name="context_regenerate_basic">Regenerate</string>
+    <string name="context_saving">Saving to notes…</string>
+    <string name="context_saved">Automatically saved to notes</string>
+    <string name="context_retry_save">Retry saving</string>
+    <string name="context_configuration_hint">Configure AI to explain words, translate sentences, and continue analysis.</string>
+    <string name="context_automatic_hint">Generated content is automatically saved to this note.</string>
+</resources>

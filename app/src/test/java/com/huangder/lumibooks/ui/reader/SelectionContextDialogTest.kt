@@ -9,6 +9,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.huangder.lumibooks.R
+import com.huangder.lumibooks.translation.ContextDocument
+import com.huangder.lumibooks.translation.ContextState
 import com.huangder.lumibooks.ui.components.LiquidGlassDialogHost
 import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import org.junit.Assert.*
@@ -24,41 +26,16 @@ import org.robolectric.annotation.Config
 class SelectionContextDialogTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun saveWaitsForPersistenceAndKeepsPreviewOnFailure() {
-        val context = RuntimeEnvironment.getApplication()
-        var complete: ((Boolean) -> Unit)? = null
-        var savedText: String? = null
-        var dismissed = false
-        compose.setContent {
-            MaterialTheme {
-                SelectionContextDialog("word", { "A word in its paragraph." },
-                    onSave = { text, result -> savedText = text; complete = result },
-                    onDismiss = { dismissed = true })
-            }
-        }
-        compose.onNodeWithText("A word in its paragraph.").assertIsDisplayed()
-        val save = compose.onNodeWithText(context.getString(R.string.selection_context_save))
-        save.performClick().assertIsNotEnabled()
-        compose.runOnIdle {
-            assertEquals("A word in its paragraph.", savedText)
-            assertFalse(dismissed)
-            complete!!(false)
-        }
-        compose.onNodeWithText(context.getString(R.string.selection_context_save_failed)).assertIsDisplayed()
-        save.assertIsEnabled().performClick()
-        compose.runOnIdle { complete!!(true) }
-        compose.runOnIdle { assertTrue(dismissed) }
-    }
-
     @Test fun missingContextCannotBeSaved() {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                SelectionContextDialog("word", { null }, onSave = { _, _ -> fail("Unavailable context was saved") }, onDismiss = {})
+                SelectionContextDialog(ContextState(unavailable = true), onAnalyze = { fail("Unavailable context was analyzed") },
+                    onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
             }
         }
         compose.onNodeWithText(context.getString(R.string.selection_context_unavailable)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.selection_context_save)).assertIsNotEnabled()
+        compose.onNodeWithText(context.getString(R.string.context_continue)).assertDoesNotExist()
     }
 
     @Test fun glassPreviewIsModalAndRestoresReaderAfterDismissal() {
@@ -70,8 +47,8 @@ class SelectionContextDialogTest {
                     LiquidGlassDialogHost {
                         Text("Reader content")
                         if (visible.value) {
-                            SelectionContextDialog("word", { "A word in its paragraph." },
-                                onSave = { _, _ -> fail("Cancel must not save") },
+                            SelectionContextDialog(ContextState(document = ContextDocument("word", "A word in its paragraph.")),
+                                onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {},
                                 onDismiss = { visible.value = false })
                         }
                     }
@@ -79,10 +56,10 @@ class SelectionContextDialogTest {
             }
         }
         compose.onNode(isDialog()).assertExists().assert(
-            SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "word")
+            SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, context.getString(R.string.selection_context))
         )
         compose.onNodeWithText("Reader content").assertDoesNotExist()
-        compose.onNodeWithText(context.getString(R.string.cancel)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.reader_close)).performClick()
         compose.waitUntil { !visible.value }
         // The shared host retains the outgoing surface for its exit animation.
         compose.mainClock.advanceTimeBy(500)

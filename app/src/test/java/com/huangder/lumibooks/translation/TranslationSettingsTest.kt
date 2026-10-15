@@ -2,6 +2,7 @@ package com.huangder.lumibooks.translation
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.json.JSONObject
 
 class TranslationSettingsTest {
     @Test fun missingOrInvalidConfigurationDefaultsToDisabled() {
@@ -30,5 +31,32 @@ class TranslationSettingsTest {
         val draft = TranslationSettings(baseUrl = "https://example.com/", targetLanguage = "Brazilian ")
         assertEquals(draft, TranslationSettings.fromJson(draft.toJson()))
         assertEquals("Brazilian", draft.normalized().targetLanguage)
+    }
+
+    @Test fun contextOptionsRoundTripIndependently() {
+        for ((grammar, vocabulary) in listOf(true to false, false to true, true to true)) {
+            val raw = """{"contextGrammarEnabled":$grammar,"contextVocabularyEnabled":$vocabulary}"""
+            val saved = JSONObject(TranslationSettings.fromJson(raw).toJson())
+            assertEquals(grammar, saved.opt("contextGrammarEnabled"))
+            assertEquals(vocabulary, saved.opt("contextVocabularyEnabled"))
+        }
+    }
+
+    @Test fun legacyConfigurationDisablesContextOptionsWithoutLosingConnection() {
+        val settings = TranslationSettings.fromJson("""{"enabled":true,"provider":"CUSTOM","baseUrl":"https://example.com/v1","auth":"BEARER","model":"existing-model","credentialVersion":"existing-key"}""")
+        val saved = JSONObject(settings.toJson())
+        assertEquals(false, saved.opt("contextGrammarEnabled"))
+        assertEquals(false, saved.opt("contextVocabularyEnabled"))
+        assertTrue(settings.enabled)
+        assertEquals("existing-model", settings.model)
+        assertEquals("existing-key", settings.credentialVersion)
+        assertEquals("BEARER|https://example.com/v1", settings.credentialScope)
+    }
+
+    @Test fun contextOptionsDoNotChangeCredentialScope() {
+        val original = TranslationSettings.fromJson("""{"provider":"CUSTOM","baseUrl":"https://example.com/v1","auth":"BEARER","credentialVersion":"existing-key"}""")
+        val automatic = TranslationSettings.fromJson("""{"provider":"CUSTOM","baseUrl":"https://example.com/v1","auth":"BEARER","credentialVersion":"existing-key","contextGrammarEnabled":true,"contextVocabularyEnabled":true}""")
+        assertEquals(original.credentialScope, automatic.credentialScope)
+        assertEquals(original.credentialVersion, automatic.credentialVersion)
     }
 }

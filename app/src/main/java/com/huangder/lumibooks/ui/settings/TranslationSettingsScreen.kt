@@ -3,6 +3,7 @@ package com.huangder.lumibooks.ui.settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.huangder.lumibooks.ui.theme.AppRoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,11 +28,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.huangder.lumibooks.R
 import com.huangder.lumibooks.translation.*
@@ -47,6 +50,7 @@ import com.huangder.lumibooks.ui.icons.AppIcons
 import com.huangder.lumibooks.ui.theme.AppColors
 import com.huangder.lumibooks.ui.theme.AppRadius
 import com.huangder.lumibooks.ui.theme.AppType
+import com.huangder.lumibooks.ui.theme.AppSpace
 
 @Composable
 fun TranslationSettingsDetail(viewModel: TranslationSettingsViewModel = hiltViewModel()) {
@@ -128,6 +132,24 @@ internal fun TranslationSettingsContent(
         TranslationToggle(stringResource(R.string.translation_enable), draft.enabled, !action.busy) {
             update(draft.copy(enabled = it))
         }
+        HorizontalDivider(color = AppColors.Divider)
+        Text(stringResource(R.string.context_settings_title), color = AppColors.TextPrimary,
+            fontSize = AppType.Section, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.context_settings_description), color = AppColors.TextSecondary, fontSize = AppType.BodySmall)
+        val contextGroupShape = AppRoundedCornerShape(AppRadius.lg)
+        Column(Modifier.fillMaxWidth().clip(contextGroupShape).lumiCardSurface(shape = contextGroupShape)) {
+            val rowModifier = Modifier.heightIn(min = AppSpace.xl * 2)
+                .padding(horizontal = AppSpace.md, vertical = AppSpace.sm)
+            TranslationToggle(stringResource(R.string.context_settings_grammar), draft.contextGrammarEnabled, !action.busy,
+                modifier = rowModifier) {
+                update(draft.copy(contextGrammarEnabled = it))
+            }
+            HorizontalDivider(Modifier.padding(horizontal = AppSpace.md), color = AppColors.Divider)
+            TranslationToggle(stringResource(R.string.context_settings_vocabulary), draft.contextVocabularyEnabled, !action.busy,
+                modifier = rowModifier) {
+                update(draft.copy(contextVocabularyEnabled = it))
+            }
+        }
         LiquidGlassTextButton(stringResource(R.string.translation_save), { onSave(draft, token) }, enabled = !action.busy)
         LiquidGlassTextButton(stringResource(R.string.translation_test), { onTest(draft, token) }, enabled = !action.busy)
         if (action.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -138,11 +160,14 @@ internal fun TranslationSettingsContent(
 }
 
 @Composable
-private fun TranslationToggle(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+private fun TranslationToggle(label: String, checked: Boolean, enabled: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+    Row(modifier.fillMaxWidth().heightIn(min = 44.dp)
+        .semantics { contentDescription = label }
+        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, Modifier.weight(1f), color = AppColors.TextPrimary, fontSize = AppType.Body)
-        LiquidGlassSwitch(checked, onChange, enabled = enabled)
+        LiquidGlassSwitch(checked, onChange, Modifier.clearAndSetSemantics {}, enabled = enabled)
     }
 }
 

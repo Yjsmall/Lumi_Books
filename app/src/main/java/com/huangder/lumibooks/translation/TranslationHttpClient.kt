@@ -63,14 +63,24 @@ class TranslationHttpClient @Inject constructor() {
         }.build()
 
     suspend fun translate(settings: TranslationSettings, token: String, text: String): String {
+        if (text.isBlank()) throw TranslationException(TranslationError.CONFIGURATION)
+        return complete(settings, token, translationPayload(settings, text))
+    }
+
+    suspend fun analyzeContext(settings: TranslationSettings, token: String, request: ContextAnalysisRequest): ContextAnalysisResult {
+        if (request.selectedText.isBlank() || request.sentence.isBlank() || request.parts.isEmpty())
+            throw TranslationException(TranslationError.CONFIGURATION)
+        return parseContextAnalysis(complete(settings, token, contextAnalysisPayload(settings, request)), request.parts)
+    }
+
+    private suspend fun complete(settings: TranslationSettings, token: String, payload: String): String {
         validateTranslationSettings(settings)
         if (token.isBlank()) throw TranslationException(TranslationError.MISSING_KEY)
-        if (text.isBlank()) throw TranslationException(TranslationError.CONFIGURATION)
         val normalized = settings.normalized()
         val request = Request.Builder().url(translationEndpoint(normalized))
             .header(if (normalized.auth == TranslationAuth.API_KEY) "api-key" else "Authorization",
                 if (normalized.auth == TranslationAuth.API_KEY) token else "Bearer $token")
-            .post(translationPayload(normalized, text).toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
         return execute(request) { root ->
             val content = root.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.opt("content") as? String

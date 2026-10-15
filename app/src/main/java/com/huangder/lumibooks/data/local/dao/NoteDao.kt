@@ -19,6 +19,18 @@ interface NoteDao {
     @Query("SELECT * FROM notes")
     suspend fun getAllNotes(): List<NoteEntity>
 
+    @Query("SELECT * FROM notes WHERE id = :id")
+    suspend fun getById(id: Long): NoteEntity?
+
+    @Query("SELECT * FROM notes WHERE syncId = :syncId")
+    suspend fun getBySyncId(syncId: String): NoteEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertContextNote(note: NoteEntity): Long
+
+    @Query("UPDATE notes SET note = :note, contextJson = :contextJson, isNote = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateContextNote(id: Long, note: String, contextJson: String?, updatedAt: Long): Int
+
     @Query("SELECT tagsJson FROM notes")
     fun observeTagLists(): Flow<List<String>>
 

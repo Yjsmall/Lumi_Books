@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="context_sentence">原句</string>
+    <string name="context_meaning">此处词义</string>
+    <string name="context_translation">句子翻译</string>
+    <string name="context_grammar">语法解析</string>
+    <string name="context_vocabulary">词汇积累</string>
+    <string name="context_continue">继续解析</string>
+    <string name="context_analyzing">正在解析…</string>
+    <string name="context_analyze">解释并翻译</string>
+    <string name="context_regenerate">重新生成%1$s</string>
+    <string name="context_regenerate_basic">重新生成</string>
+    <string name="context_saving">正在保存到笔记…</string>
+    <string name="context_saved">已自动保存到笔记</string>
+    <string name="context_retry_save">重试保存</string>
+    <string name="context_configuration_hint">配置 AI 后，可以解释词义、翻译句子或继续解析。</string>
+    <string name="context_automatic_hint">生成的内容会自动保存到这条笔记。</string>
+</resources>

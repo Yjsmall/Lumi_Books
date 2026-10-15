@@ -244,6 +244,7 @@ private fun noteToJson(item: NoteEntity) = JSONObject().apply {
     putNullable("sourceMatchKey", item.sourceMatchKey)
     putNullable("styleSnapshotJson", item.styleSnapshotJson)
     put("tagsJson", item.tagsJson)
+    item.contextJson?.let { put("contextJson", it) }
 }
 
 private fun noteFromJson(json: JSONObject) = NoteEntity(
@@ -259,7 +260,8 @@ private fun noteFromJson(json: JSONObject) = NoteEntity(
     sourceRuleId = json.nullableString("sourceRuleId"),
     sourceMatchKey = json.nullableString("sourceMatchKey"),
     styleSnapshotJson = json.nullableString("styleSnapshotJson"),
-    tagsJson = json.optString("tagsJson", "[]")
+    tagsJson = json.optString("tagsJson", "[]"),
+    contextJson = json.nullableString("contextJson")
 )
 
 private fun highlightRuleToJson(item: HighlightRuleEntity) = JSONObject().apply {

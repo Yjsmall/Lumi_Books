@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="context_settings_title">上下文</string>
+    <string name="context_settings_description">启用自动翻译后，打开上下文时会自动生成已开启的内容。关闭自动选项时，仍可在卡片中点击“继续解析”手动生成。</string>
+    <string name="context_settings_grammar">语法解析</string>
+    <string name="context_settings_vocabulary">词汇积累</string>
+</resources>

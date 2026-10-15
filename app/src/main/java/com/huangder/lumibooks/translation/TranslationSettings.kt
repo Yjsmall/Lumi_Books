@@ -20,7 +20,9 @@ data class TranslationSettings(
     val targetLanguage: String = "简体中文",
     val allowHttp: Boolean = false,
     // Changes only when credentials are replaced, so active requests can be invalidated.
-    val credentialVersion: String = ""
+    val credentialVersion: String = "",
+    val contextGrammarEnabled: Boolean = false,
+    val contextVocabularyEnabled: Boolean = false
 ) {
     fun normalized() = copy(baseUrl = baseUrl.trim().trimEnd('/'), model = model.trim(),
         targetLanguage = targetLanguage.trim(), auth = if (provider == TranslationProvider.CUSTOM) auth else provider.auth)
@@ -31,6 +33,8 @@ data class TranslationSettings(
         put("enabled", enabled); put("provider", provider.name); put("baseUrl", baseUrl)
         put("auth", auth.name); put("model", model); put("targetLanguage", targetLanguage)
         put("allowHttp", allowHttp); put("credentialVersion", credentialVersion)
+        put("contextGrammarEnabled", contextGrammarEnabled)
+        put("contextVocabularyEnabled", contextVocabularyEnabled)
     }.toString()
 
     companion object {
@@ -41,7 +45,8 @@ data class TranslationSettings(
                 json.optString("baseUrl", provider.baseUrl),
                 TranslationAuth.valueOf(json.optString("auth", provider.auth.name)),
                 json.optString("model"), json.optString("targetLanguage", "简体中文"),
-                json.optBoolean("allowHttp"), json.optString("credentialVersion"))
+                json.optBoolean("allowHttp"), json.optString("credentialVersion"),
+                json.optBoolean("contextGrammarEnabled"), json.optBoolean("contextVocabularyEnabled"))
         }.getOrDefault(TranslationSettings())
     }
 }

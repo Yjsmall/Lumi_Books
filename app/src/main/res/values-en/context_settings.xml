@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="context_settings_title">Context</string>
+    <string name="context_settings_description">With automatic translation enabled, opening Context generates the options selected below. When automatic options are off, you can still use Continue analysis in the context card.</string>
+    <string name="context_settings_grammar">Grammar analysis</string>
+    <string name="context_settings_vocabulary">Vocabulary collection</string>
+</resources>

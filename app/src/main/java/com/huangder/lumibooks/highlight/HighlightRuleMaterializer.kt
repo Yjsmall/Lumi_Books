@@ -162,7 +162,8 @@ class HighlightRuleMaterializer @Inject constructor(
                         updatedAt = if (unchanged) previous.updatedAt else item.updatedAt,
                         note = previous.note,
                         isNote = previous.isNote,
-                        tagsJson = previous.tagsJson
+                        tagsJson = previous.tagsJson,
+                        contextJson = previous.contextJson
                     )
                 }
             }

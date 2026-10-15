@@ -83,6 +83,7 @@ import com.huangder.lumibooks.ui.components.LiquidGlassSurface
 import com.huangder.lumibooks.ui.components.ProvideLiquidGlassBackdrop
 import com.huangder.lumibooks.ui.components.SwipeRevealItem
 import com.huangder.lumibooks.ui.reader.NoteInputSheet
+import com.huangder.lumibooks.ui.reader.ContextNoteDialog
 import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import com.huangder.lumibooks.ui.theme.LocalEInkMode
 import com.huangder.lumibooks.ui.theme.LocalIsDarkTheme
@@ -120,6 +121,7 @@ fun BookNotesScreen(
     var bookmarkRemarkText by remember { mutableStateOf("") }
     var bookmarkRemarkTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var editingNoteTags by remember { mutableStateOf<Note?>(null) }
+    var contextNote by remember { mutableStateOf<Note?>(null) }
     var editingBookmarkTags by remember { mutableStateOf<Bookmark?>(null) }
     var selectedTag by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedColor by rememberSaveable { mutableStateOf<String?>(null) }
@@ -298,6 +300,7 @@ fun BookNotesScreen(
                     onShare = shareNote,
                     notes = uiState.noteItems.filter(filter::matches),
                     targetNoteId = targetNoteId,
+                    onOpenContext = { contextNote = it },
                     onEditTags = { editingNoteTags = it },
                     onDelete = { viewModel.deleteNote(it) }
                 )
@@ -351,6 +354,10 @@ fun BookNotesScreen(
                     .navigationBarsPadding()
                     .padding(end = AppSpace.lg, bottom = AppSpace.lg)
             )
+        }
+        contextNote?.let { note ->
+            ContextNoteDialog(note = note, backdrop = glassBackdrop.takeIf { isLiquidGlass },
+                onDismiss = { contextNote = null })
         }
         NoteInputSheet(
             visible = editingBookmarkRemark != null,
@@ -501,7 +508,8 @@ private fun NoteList(
     onShare: (Note) -> Unit,
     targetNoteId: Long? = null,
     onEditTags: (Note) -> Unit,
-    onDelete: (Note) -> Unit
+    onDelete: (Note) -> Unit,
+    onOpenContext: (Note) -> Unit = {}
 ) {
     if (notes.isEmpty()) {
         Box(
@@ -543,6 +551,7 @@ private fun NoteList(
             ) { note ->
                 HighlightNoteItem(
                     note = note,
+                    onOpenContext = { onOpenContext(note) },
                     onShare = { onShare(note) },
                     onEditTags = { onEditTags(note) },
                     onDelete = { onDelete(note) }
@@ -600,6 +609,7 @@ private fun BookmarkList(
 @Composable
 private fun HighlightNoteItem(
     note: Note,
+    onOpenContext: () -> Unit,
     onShare: () -> Unit,
     onEditTags: () -> Unit,
     onDelete: () -> Unit
@@ -615,6 +625,7 @@ private fun HighlightNoteItem(
                 .clip(AppRoundedCornerShape(12.dp))
                 .lumiCardSurface(shape = AppRoundedCornerShape(12.dp))
                 .border(1.dp, AppColors.TextSecondary.copy(alpha = 0.24f), AppRoundedCornerShape(12.dp))
+                .then(if (note.contextJson != null) Modifier.clickable(onClick = onOpenContext) else Modifier)
                 .padding(16.dp)
         ) {
             // 高亮色条 + 文字

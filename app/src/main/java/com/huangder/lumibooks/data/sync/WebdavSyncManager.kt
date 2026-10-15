@@ -1508,6 +1508,7 @@ class WebdavSyncManager @Inject constructor(
                             n.sourceRuleId?.let { put("sourceRuleId", it) }
                             n.sourceMatchKey?.let { put("sourceMatchKey", it) }
                             n.styleSnapshotJson?.let { put("styleSnapshotJson", it) }
+                            n.contextJson?.let { put("contextJson", it) }
                         })
                     }
                 })
@@ -1623,7 +1624,8 @@ class WebdavSyncManager @Inject constructor(
                     sourceRuleId = n.optString("sourceRuleId", null),
                     sourceMatchKey = n.optString("sourceMatchKey", null),
                     styleSnapshotJson = n.optString("styleSnapshotJson", null),
-                    tags = com.huangder.lumibooks.domain.model.AnnotationTags.decode(n.optJSONArray("tags")?.toString())
+                    tags = com.huangder.lumibooks.domain.model.AnnotationTags.decode(n.optJSONArray("tags")?.toString()),
+                    contextJson = n.takeIf { it.has("contextJson") && !it.isNull("contextJson") }?.optString("contextJson")
                 ))
             }
         }
