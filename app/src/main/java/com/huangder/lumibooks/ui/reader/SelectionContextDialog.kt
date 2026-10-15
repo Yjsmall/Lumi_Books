@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -16,7 +17,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
@@ -24,8 +24,10 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.huangder.lumibooks.R
 import com.huangder.lumibooks.domain.model.Note
@@ -47,9 +49,8 @@ internal fun ContextNoteDialog(
     LaunchedEffect(note) { viewModel.open(note) { currentLoader() } }
     DisposableEffect(viewModel) { onDispose { viewModel.stop() } }
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
     SelectionContextDialog(state, viewModel::analyze, viewModel::retry, viewModel::retrySave,
-        onSettings = { openTranslationSettings(context) }, onDismiss = onDismiss, backdrop = backdrop)
+        onDismiss = onDismiss, backdrop = backdrop)
 }
 
 @Composable
@@ -58,7 +59,6 @@ internal fun SelectionContextDialog(
     onAnalyze: (ContextPart) -> Unit,
     onRetry: () -> Unit,
     onRetrySave: () -> Unit,
-    onSettings: () -> Unit,
     onDismiss: () -> Unit,
     backdrop: Backdrop? = null
 ) {
@@ -69,6 +69,7 @@ internal fun SelectionContextDialog(
         onDismissRequest = { if (menuHost?.activeMenu != null) menuHost?.dismiss() else onDismiss() },
         modifier = Modifier.semantics { paneTitle = title },
         backdrop = backdrop,
+        forceFallback = true,
         shape = AppRoundedCornerShape(AppRadius.xl)
     ) {
         LiquidGlassMenuHost(Modifier.fillMaxWidth(), backdrop = backdrop, sizeToContent = true) {
@@ -88,26 +89,12 @@ internal fun SelectionContextDialog(
                     Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppSpace.sm)
                 ) {
-                    Text(title, Modifier.weight(1f), fontSize = AppType.Section, fontWeight = FontWeight.Bold,
+                    Text(document?.selectedText ?: title, Modifier.weight(1f), fontSize = AppType.Section, fontWeight = FontWeight.Bold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, color = AppColors.TextPrimary)
-                    LiquidGlassIconButton(AppIcons.Gear, stringResource(R.string.translation_settings), onSettings,
-                        size = 44.dp, normalContainerColor = AppColors.BgGray)
-                    LiquidGlassIconButton(AppIcons.X, stringResource(R.string.reader_close), onDismiss,
-                        size = 44.dp, normalContainerColor = AppColors.BgGray)
+                    if (document != null) ContextAnalysisMenu(dialogState.configured && !busy, onAnalyze)
                 }
                 ContextContent(dialogState, onRetry, Modifier.weight(1f, fill = false).fillMaxWidth())
-                if (document != null) {
-                    ContextSaveStatus(dialogState, onRetrySave)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppSpace.sm)) {
-                        LiquidGlassTextButton(
-                            if (document.has(ContextPart.BASIC)) stringResource(R.string.context_regenerate_basic)
-                            else stringResource(R.string.context_analyze),
-                            modifier = Modifier.weight(1f), onClick = { onAnalyze(ContextPart.BASIC) },
-                            enabled = dialogState.configured && !busy
-                        )
-                        ContextAnalysisMenu(document, dialogState.configured && !busy, onAnalyze, Modifier.weight(1f))
-                    }
-                }
+                if (dialogState.saveFailed) ContextSaveError(onRetrySave)
             }
         }
     }
@@ -122,7 +109,6 @@ private fun ContextContent(state: ContextState, onRetry: () -> Unit, modifier: M
             state.loading -> Text(stringResource(R.string.selection_context_loading), color = AppColors.TextSecondary, fontSize = AppType.BodySmall)
             state.unavailable -> Text(stringResource(R.string.selection_context_unavailable), color = AppColors.TextSecondary, fontSize = AppType.BodySmall)
             document != null -> {
-                Text(document.selectedText, fontSize = AppType.Section, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
                 ContextSection(stringResource(R.string.context_sentence), document.sentence, source = true)
                 document.meaning?.let { ContextSection(stringResource(R.string.context_meaning), it) }
                 document.translation?.let { ContextSection(stringResource(R.string.context_translation), it) }
@@ -150,45 +136,50 @@ private fun ContextContent(state: ContextState, onRetry: () -> Unit, modifier: M
 }
 
 @Composable
-private fun ContextSaveStatus(state: ContextState, onRetrySave: () -> Unit) {
+private fun ContextSaveError(onRetrySave: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpace.sm)
     ) {
         Text(
-            stringResource(when {
-                state.saveFailed -> R.string.selection_context_save_failed
-                state.saving -> R.string.context_saving
-                state.saved -> R.string.context_saved
-                else -> R.string.context_automatic_hint
-            }),
+            stringResource(R.string.selection_context_save_failed),
             modifier = Modifier.weight(1f), fontSize = AppType.Caption,
-            color = if (state.saveFailed) MaterialTheme.colorScheme.error else AppColors.TextSecondary
+            color = MaterialTheme.colorScheme.error
         )
-        if (state.saveFailed) LiquidGlassTextButton(stringResource(R.string.context_retry_save), onRetrySave, enabled = !state.saving)
+        LiquidGlassTextButton(stringResource(R.string.context_retry_save), onRetrySave)
     }
 }
 
 @Composable
-private fun ContextAnalysisMenu(document: ContextDocument, enabled: Boolean, onAnalyze: (ContextPart) -> Unit, modifier: Modifier) {
+private fun ContextAnalysisMenu(enabled: Boolean, onAnalyze: (ContextPart) -> Unit, modifier: Modifier = Modifier) {
     val host = LocalLiquidGlassMenuHost.current
     val sourceId = remember { Any() }
     var bounds by remember { mutableStateOf(Rect.Zero) }
-    val density = LocalDensity.current
     val currentAnalyze by rememberUpdatedState(onAnalyze)
     val currentEnabled by rememberUpdatedState(enabled)
-    val items = listOf(ContextPart.GRAMMAR to R.string.context_grammar, ContextPart.VOCABULARY to R.string.context_vocabulary).map { (part, label) ->
-        val text = stringResource(label)
-        LiquidGlassMenuItem(if (document.has(part)) stringResource(R.string.context_regenerate, text) else text,
-            onClick = { if (currentEnabled) currentAnalyze(part) })
+    val items = listOf(
+        ContextPart.BASIC to R.string.context_analyze,
+        ContextPart.GRAMMAR to R.string.context_grammar,
+        ContextPart.VOCABULARY to R.string.context_vocabulary
+    ).map { (part, label) ->
+        LiquidGlassMenuItem(stringResource(label), onClick = { if (currentEnabled) currentAnalyze(part) })
+    }
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labelStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+    val labels = items.map { it.label }
+    val menuWidth = remember(labels, textMeasurer, labelStyle, density) {
+        with(density) {
+            labels.maxOf { textMeasurer.measure(it, labelStyle, softWrap = false).size.width }.toDp()
+        } + AppSpace.lg * 2
     }
     LaunchedEffect(enabled) { if (!enabled) host?.dismiss() }
-    LiquidGlassTextButton(stringResource(R.string.context_continue),
+    LiquidGlassIconButton(AppIcons.Lightning, stringResource(R.string.context_analysis_menu),
         modifier = modifier.liquidGlassMenuAnchor(sourceId).onGloballyPositioned { bounds = it.boundsInRoot() },
-        enabled = enabled && host != null, tintedColor = AppColors.Accent,
+        enabled = enabled && host != null, size = 44.dp, normalContainerColor = AppColors.BgGray,
         onClick = {
-            host?.toggle(LiquidGlassMenuSpec(anchorBounds = bounds, width = with(density) { maxOf(bounds.width.toDp(), 240.dp) },
-                items = items, sourceId = sourceId, preferAbove = true, keepTriggerInteractive = false))
+            host?.toggle(LiquidGlassMenuSpec(anchorBounds = bounds, width = menuWidth,
+                items = items, sourceId = sourceId, preferAbove = false, keepTriggerInteractive = false))
         })
 }
 

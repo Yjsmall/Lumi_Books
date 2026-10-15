@@ -52,13 +52,13 @@ class SelectionContextCardTest {
             MaterialTheme {
                 CompositionLocalProvider(LocalMotionEnabled provides false) {
                     SelectionContextDialog(ContextState(document = document, configured = true, loadingParts = setOf(ContextPart.GRAMMAR)),
-                        onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                        onAnalyze = {}, onRetry = {}, onRetrySave = {}, onDismiss = {})
                 }
             }
         }
         compose.onNodeWithText(context.getString(R.string.context_analyzing)).performScrollTo().assertIsDisplayed()
         compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).assertCountEquals(0)
-        compose.onNodeWithText(context.getString(R.string.context_continue)).assertIsNotEnabled()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).assertIsNotEnabled()
     }
 
     @Test @Config(qualifiers = "zh-rCN-w411dp-h891dp-xxhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -111,15 +111,15 @@ class SelectionContextCardTest {
                     LiquidGlassDialogHost(Modifier.fillMaxSize(), backdrop = backdrop) {
                         Box(Modifier.fillMaxSize().background(AppColors.WindowBg).layerBackdrop(backdrop)) { Text("Reader preview") }
                         SelectionContextDialog(ContextState(document = document, configured = true, saved = true),
-                            onAnalyze = { selections++ }, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {}, backdrop = backdrop)
+                            onAnalyze = { selections++ }, onRetry = {}, onRetrySave = {}, onDismiss = {}, backdrop = backdrop)
                     }
                 }
             }
         }
-        compose.onNodeWithContentDescription(context.getString(R.string.translation_settings))
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu))
             .assertIsDisplayed().assertWidthIsAtLeast(44.dp).assertHeightIsAtLeast(44.dp)
-        compose.onNodeWithContentDescription(context.getString(R.string.reader_close))
-            .assertIsDisplayed().assertWidthIsAtLeast(44.dp).assertHeightIsAtLeast(44.dp)
+        compose.onNodeWithContentDescription(context.getString(R.string.translation_settings)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(context.getString(R.string.reader_close)).assertDoesNotExist()
         fun snapshot(suffix: String) = compose.runOnIdle {
             val view = if (theme == "liquid_glass") rootView!! else ShadowDialog.getLatestDialog().window!!.decorView
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
@@ -131,7 +131,7 @@ class SelectionContextCardTest {
         }
         snapshot("card")
         val before = compose.onNode(isDialog()).fetchSemanticsNode().boundsInRoot
-        compose.onNodeWithText(context.getString(R.string.context_continue)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
         compose.mainClock.advanceTimeBy(1500)
         compose.waitForIdle()
         assertEquals(before, compose.onNode(isDialog()).fetchSemanticsNode().boundsInRoot)
@@ -150,11 +150,11 @@ class SelectionContextCardTest {
         compose.setContent {
             MaterialTheme {
                 SelectionContextDialog(ContextState(document = document, configured = true, saved = true),
-                    onAnalyze = { selections++ }, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                    onAnalyze = { selections++ }, onRetry = {}, onRetrySave = {}, onDismiss = {})
             }
         }
         val before = compose.onNode(isDialog()).fetchSemanticsNode().boundsInRoot
-        compose.onNodeWithText(context.getString(R.string.context_continue)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
         compose.mainClock.advanceTimeBy(1500)
         compose.waitForIdle()
         val after = compose.onNode(isDialog()).fetchSemanticsNode().boundsInRoot
@@ -175,14 +175,13 @@ class SelectionContextCardTest {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
                     SelectionContextDialog(ContextState(document = longDocument, configured = true, saved = true),
-                        onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                        onAnalyze = {}, onRetry = {}, onRetrySave = {}, onDismiss = {})
                 }
             }
         }
-        compose.onNodeWithContentDescription(context.getString(R.string.translation_settings)).assertIsDisplayed()
-        compose.onNodeWithContentDescription(context.getString(R.string.reader_close)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).assertIsDisplayed()
         compose.onNodeWithText(longDocument.grammar!!).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.context_continue)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).assertIsDisplayed()
     }
 
     @Test fun backDismissesTheMenuBeforeTheContextCard() {
@@ -191,10 +190,10 @@ class SelectionContextCardTest {
         compose.setContent {
             MaterialTheme {
                 SelectionContextDialog(ContextState(document = document, configured = true, saved = true),
-                    onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = { dismissed = true })
+                    onAnalyze = {}, onRetry = {}, onRetrySave = {}, onDismiss = { dismissed = true })
             }
         }
-        compose.onNodeWithText(context.getString(R.string.context_continue)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
         compose.mainClock.advanceTimeBy(1500)
         compose.runOnIdle { ShadowDialog.getLatestDialog().onBackPressed() }
         compose.mainClock.advanceTimeBy(1500)
@@ -210,15 +209,23 @@ class SelectionContextCardTest {
         var requested: ContextPart? = null
         compose.setContent {
             MaterialTheme {
-                SelectionContextDialog(ContextState(document = document, configured = true),
-                    onAnalyze = { requested = it }, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                SelectionContextDialog(ContextState(document = document, configured = true, saved = true),
+                    onAnalyze = { requested = it }, onRetry = {}, onRetrySave = {}, onDismiss = {})
             }
         }
         compose.onNodeWithText("bank").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.context_saved)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.context_regenerate_basic)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.context_continue)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.context_automatic_hint)).assertDoesNotExist()
         compose.onNodeWithText("He sat on the bank.").assertIsDisplayed()
         compose.onNodeWithText("河岸").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("他坐在河岸上。").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.context_continue)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
+        compose.onNodeWithText(context.getString(R.string.context_analyze)).performClick()
+        compose.runOnIdle { assertEquals(ContextPart.BASIC, requested) }
+        compose.mainClock.advanceTimeBy(1500)
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
         compose.onNodeWithText(context.getString(R.string.context_grammar)).performClick()
         compose.runOnIdle { assertEquals(ContextPart.GRAMMAR, requested) }
     }
@@ -229,7 +236,7 @@ class SelectionContextCardTest {
         compose.setContent {
             MaterialTheme {
                 SelectionContextDialog(ContextState(document = document, saveFailed = true), onAnalyze = {},
-                    onRetry = {}, onRetrySave = { retried = true }, onSettings = {}, onDismiss = {})
+                    onRetry = {}, onRetrySave = { retried = true }, onDismiss = {})
             }
         }
         compose.onNodeWithText("河岸").performScrollTo().assertIsDisplayed()
@@ -245,12 +252,12 @@ class SelectionContextCardTest {
         compose.setContent {
             MaterialTheme {
                 SelectionContextDialog(ContextState(document = document, configured = true, saved = true),
-                    onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                    onAnalyze = {}, onRetry = {}, onRetrySave = {}, onDismiss = {})
             }
         }
         compose.onNodeWithText("河岸").assertIsDisplayed()
         compose.onNodeWithText("他坐在河岸上。").assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.context_continue)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).performClick()
         compose.onNodeWithText(context.getString(R.string.context_grammar)).assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.context_vocabulary)).assertIsDisplayed()
         compose.runOnIdle {

@@ -71,6 +71,7 @@ internal data class LiquidGlassDialogSpec(
     val backgroundBlurRadius: androidx.compose.ui.unit.Dp,
     val transparencyOverride: Float?,
     val properties: DialogProperties,
+    val forceFallback: Boolean = false,
     val content: @Composable BoxScope.() -> Unit
 )
 
@@ -279,6 +280,7 @@ fun LiquidGlassDialogHost(
                                         contentScrimColor = targetSpec.contentScrimColor,
                                         transparencyOverride = targetSpec.transparencyOverride,
                                         interactive = false,
+                                        forceFallback = targetSpec.forceFallback,
                                         modifier = Modifier
                                             .widthIn(max = 560.dp)
                                             .semantics { dialog() }
@@ -313,6 +315,7 @@ fun LiquidGlassDialog(
     backgroundBlurRadius: androidx.compose.ui.unit.Dp = 0.dp,
     transparencyOverride: Float? = null,
     properties: DialogProperties = DialogProperties(),
+    forceFallback: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
     val isLiquidGlass = LocalAppTheme.current == "liquid_glass"
@@ -341,7 +344,8 @@ fun LiquidGlassDialog(
             backgroundScrimColor,
             backgroundBlurRadius,
             transparencyOverride,
-            properties
+            properties,
+            forceFallback,
         ) {
             host.show(
                 LiquidGlassDialogSpec(
@@ -356,6 +360,7 @@ fun LiquidGlassDialog(
                     backgroundBlurRadius = backgroundBlurRadius,
                     transparencyOverride = transparencyOverride,
                     properties = properties,
+                    forceFallback = forceFallback,
                     content = { latestContent() }
                 )
             )

@@ -229,6 +229,34 @@ class MenuAnimationStyleHostTest {
         }
     }
 
+    @OptIn(InternalComposeTracingApi::class)
+    @Test fun solidMenuMorphDoesNotRecomposeItsSurfaceEveryFrame() {
+        style.value = MenuAnimationStyle.LIQUID
+        var compositions = 0
+        Composer.setTracer(object : CompositionTracer {
+            override fun isTraceInProgress() = true
+            override fun traceEventStart(key: Int, dirty1: Int, dirty2: Int, info: String) {
+                if (info.startsWith("com.huangder.lumibooks.ui.components.MenuFallbackSurface ")) compositions++
+            }
+            override fun traceEventEnd() = Unit
+        })
+        try {
+            show()
+            compose.runOnIdle { host.show(menu.copy(forceSolid = false)) }
+            advance(1200, renderFrames = true)
+            compose.runOnIdle { host.dismiss() }
+            advance(1200, renderFrames = true)
+            compose.runOnIdle {
+                println("Solid menu surface compositions: $compositions")
+                assertTrue("The tracer must observe the solid surface", compositions > 0)
+                assertTrue("Animation must update the layer without recomposing its surface: $compositions", compositions <= 12)
+                assertNull(host.displayedMenu)
+            }
+        } finally {
+            Composer.setTracer(null)
+        }
+    }
+
     @Test fun categoryPanelUsesFadeWhenMotionIsReduced() {
         motion.value = false
         val panel = menu.copy(

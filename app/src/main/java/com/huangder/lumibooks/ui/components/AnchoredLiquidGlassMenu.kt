@@ -880,9 +880,9 @@ private fun MenuFallbackSurface(
     blurBoost: () -> Dp,
     modifier: Modifier
 ) {
-    if (forceSolid && LocalAppTheme.current == "liquid_glass") {
-        // The categories surface is solid even in the glass theme. Its shadow and
-        // clip can follow the morph without rebuilding a general-purpose surface.
+    if (!isLiquidGlass || (forceSolid && LocalAppTheme.current == "liquid_glass")) {
+        // Solid surfaces only need an animated outline. Observe its shape in the
+        // layer, avoiding per-frame recomposition and unused blur calculations.
         Box(modifier.graphicsLayer {
             shadowElevation = 8.dp.toPx()
             this.shape = shape()
@@ -1135,6 +1135,7 @@ private fun AnchoredLiquidGlassMenu(
                         hostState.measured = true
                     }
                     .graphicsLayer {
+                        this.alpha = reveal()
                         val blur = if (motionEnabled && !normalMotion) LiquidGlassMenuMorph.contentBlurDp(reveal()).dp else 0.dp
                         renderEffect = if (Build.VERSION.SDK_INT >= 31 && blur > 0.1.dp) {
                             BlurEffect(blur.toPx(), blur.toPx(), TileMode.Clamp)
@@ -1142,7 +1143,6 @@ private fun AnchoredLiquidGlassMenu(
                         // Match Modifier.blur's default bounded treatment while active.
                         clip = Build.VERSION.SDK_INT >= 31 && blur > 0.1.dp
                     }
-                    .graphicsLayer { this.alpha = reveal() }
                     .then(if (!enabled) Modifier.clearAndSetSemantics {} else Modifier)
                     .then(if (fadeOnlyPanel) Modifier else Modifier.verticalScroll(rememberScrollState()))
                     .then(if (fadeOnlyPanel) Modifier else Modifier.padding(MenuContentPadding))

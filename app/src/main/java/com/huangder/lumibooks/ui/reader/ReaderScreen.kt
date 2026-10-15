@@ -294,6 +294,7 @@ import com.huangder.lumibooks.ui.theme.AppColors
 import com.huangder.lumibooks.ui.theme.AppRadius
 import com.huangder.lumibooks.ui.theme.AppSpace
 import com.huangder.lumibooks.ui.theme.AppType
+import com.huangder.lumibooks.ui.theme.LiquidGlassSurfaceStyle
 import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import com.huangder.lumibooks.ui.theme.LocalMotionEnabled
 import com.huangder.lumibooks.ui.theme.LocalEInkMode
@@ -10646,6 +10647,7 @@ private fun SelectionMenuPill(
         backdrop = glassBackdrop,
         contentScrimColor = menuBg.copy(alpha = 0.18f),
         forceFallback = forceSolidSurface,
+        surfaceStyle = LiquidGlassSurfaceStyle.ClearControl,
         modifier = Modifier
             .width(width)
             // 行高按系统字体缩放推导，避免大字体下 chip 文字被固定高度裁掉

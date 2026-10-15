@@ -6,6 +6,7 @@
     <string name="context_grammar">语法解析</string>
     <string name="context_vocabulary">词汇积累</string>
     <string name="context_continue">继续解析</string>
+    <string name="context_analysis_menu">解析选项</string>
     <string name="context_analyzing">正在解析…</string>
     <string name="context_analyze">解释并翻译</string>
     <string name="context_regenerate">重新生成%1$s</string>

@@ -38,6 +38,44 @@ class LiquidGlassReadabilityRenderTest {
     @Test fun lightContentKeepsSecondaryLabelsReadableAcrossTheWholeSurface() = verifyContent(false)
     @Test fun darkContentKeepsSecondaryLabelsReadableAcrossTheWholeSurface() = verifyContent(true)
 
+    @Test fun clearToolbarRetainsBackgroundWithoutMakingContentCardsTransparent() {
+        lateinit var view: View
+        compose.setContent {
+            view = LocalView.current
+            CompositionLocalProvider(
+                LocalAppTheme provides "liquid_glass",
+                LocalLiquidGlassTransparency provides 0.55f,
+                LocalLiquidGlassCapability provides LiquidGlassCapability(true, false)
+            ) {
+                Column(Modifier.background(Color.Black).padding(12.dp)) {
+                    LiquidGlassSurface(
+                        shape = AppShapes.rounded(22.dp), fallbackColor = Color.White,
+                        contentScrimColor = Color.White.copy(alpha = 0.18f),
+                        surfaceStyle = LiquidGlassSurfaceStyle.ClearControl,
+                        modifier = Modifier.size(200.dp, 44.dp).testTag("toolbar")
+                    ) {}
+                    LiquidGlassSurface(
+                        shape = AppShapes.rounded(22.dp), fallbackColor = Color.White,
+                        modifier = Modifier.size(200.dp, 100.dp).testTag("content")
+                    ) {}
+                }
+            }
+        }
+        val toolbar = compose.onNodeWithTag("toolbar").fetchSemanticsNode().boundsInRoot.center
+        val content = compose.onNodeWithTag("content").fetchSemanticsNode().boundsInRoot.center
+        compose.runOnIdle {
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            try {
+                view.draw(Canvas(bitmap))
+                val toolbarColor = Color(bitmap.getPixel(toolbar.x.toInt(), toolbar.y.toInt()))
+                val contentColor = Color(bitmap.getPixel(content.x.toInt(), content.y.toInt()))
+                assertTrue("Only the toolbar should retain the darker background", contentColor.luminance() - toolbarColor.luminance() > 0.3f)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+    }
+
     private fun verifyContent(dark: Boolean) {
         lateinit var view: View
         var label = Color.Unspecified

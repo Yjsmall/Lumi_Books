@@ -6,6 +6,7 @@
     <string name="context_grammar">Grammar analysis</string>
     <string name="context_vocabulary">Vocabulary collection</string>
     <string name="context_continue">Continue analysis</string>
+    <string name="context_analysis_menu">Analysis options</string>
     <string name="context_analyzing">Analyzing…</string>
     <string name="context_analyze">Explain and translate</string>
     <string name="context_regenerate">Regenerate %1$s</string>

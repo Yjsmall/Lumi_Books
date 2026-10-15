@@ -3,9 +3,14 @@ package com.huangder.lumibooks.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+/** Clear controls retain the original reader toolbar optics without changing content cards. */
+enum class LiquidGlassSurfaceStyle { Frosted, ClearControl }
+
 /** Shared frosting: clarity changes the material without exposing sharp background lettering. */
 internal object LiquidGlassMaterial {
-    fun blurRadius(transparency: Float) = (20f - 8f * transparency.coerceIn(0f, 1f)).dp
+    fun blurRadius(transparency: Float, style: LiquidGlassSurfaceStyle = LiquidGlassSurfaceStyle.Frosted) =
+        if (style == LiquidGlassSurfaceStyle.ClearControl) (6f * (1f - transparency.coerceIn(0f, 1f))).dp
+        else (20f - 8f * transparency.coerceIn(0f, 1f)).dp
 
     fun surfaceTint(
         color: Color,

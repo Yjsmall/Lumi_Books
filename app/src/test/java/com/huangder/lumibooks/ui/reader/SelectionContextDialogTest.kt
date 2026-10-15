@@ -1,6 +1,8 @@
 package com.huangder.lumibooks.ui.reader
 
 import android.app.Application
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,8 @@ import com.huangder.lumibooks.translation.ContextDocument
 import com.huangder.lumibooks.translation.ContextState
 import com.huangder.lumibooks.ui.components.LiquidGlassDialogHost
 import com.huangder.lumibooks.ui.components.LiquidGlassMenuHost
+import com.huangder.lumibooks.ui.components.LiquidGlassDialogHostState
+import com.huangder.lumibooks.ui.components.LocalLiquidGlassDialogHost
 import com.huangder.lumibooks.ui.theme.LocalAppTheme
 import org.junit.Assert.*
 import org.junit.Rule
@@ -34,24 +38,28 @@ class SelectionContextDialogTest {
         compose.setContent {
             MaterialTheme {
                 SelectionContextDialog(ContextState(unavailable = true), onAnalyze = { fail("Unavailable context was analyzed") },
-                    onRetry = {}, onRetrySave = {}, onSettings = {}, onDismiss = {})
+                    onRetry = {}, onRetrySave = {}, onDismiss = {})
             }
         }
         compose.onNodeWithText(context.getString(R.string.selection_context_unavailable)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.context_continue)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(context.getString(R.string.context_analysis_menu)).assertDoesNotExist()
     }
 
     @Test fun glassPreviewIsModalAndRestoresReaderAfterDismissal() {
         val context = RuntimeEnvironment.getApplication()
         val visible = mutableStateOf(true)
+        var backDispatcher: OnBackPressedDispatcher? = null
+        var dialogHost: LiquidGlassDialogHostState? = null
         compose.setContent {
             MaterialTheme {
+                backDispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
                 CompositionLocalProvider(LocalAppTheme provides "liquid_glass") {
                     LiquidGlassDialogHost(Modifier.fillMaxSize()) {
+                        dialogHost = LocalLiquidGlassDialogHost.current
                         Text("Reader content")
                         if (visible.value) {
                             SelectionContextDialog(ContextState(document = ContextDocument("word", "A word in its paragraph.")),
-                                onAnalyze = {}, onRetry = {}, onRetrySave = {}, onSettings = {},
+                                onAnalyze = {}, onRetry = {}, onRetrySave = {},
                                 onDismiss = { visible.value = false })
                         }
                     }
@@ -61,9 +69,11 @@ class SelectionContextDialogTest {
         compose.onNode(isDialog()).assertExists().assert(
             SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, context.getString(R.string.selection_context))
         )
+        compose.runOnIdle { assertTrue("Only the context card must use a solid surface", dialogHost!!.spec!!.forceFallback) }
         compose.onNodeWithText("Reader content").assertDoesNotExist()
-        compose.onNodeWithContentDescription(context.getString(R.string.reader_close)).performClick()
+        compose.runOnIdle { backDispatcher!!.onBackPressed() }
         compose.waitUntil { !visible.value }
+        compose.waitForIdle()
         // The shared host retains the outgoing surface for its exit animation.
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
@@ -88,7 +98,7 @@ class SelectionContextDialogTest {
                         LiquidGlassMenuHost(Modifier.fillMaxSize()) {
                             Text("Book notes page")
                             SelectionContextDialog(state.value, onAnalyze = {}, onRetry = {}, onRetrySave = {},
-                                onSettings = {}, onDismiss = {})
+                                onDismiss = {})
                         }
                     }
                 }

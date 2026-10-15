@@ -88,7 +88,7 @@ internal fun contextAnalysisPayload(settings: TranslationSettings, request: Cont
     put("model", settings.model); put("stream", false)
     val fields = buildList {
         if (ContextPart.BASIC in request.parts) {
-            add("meaning: a concise explanation of the selected text's meaning and usage in this sentence, including its part of speech when relevant; do not list unrelated dictionary senses")
+            add("meaning: only the shortest accurate gloss of the selected text in this sentence, preferably one word or a short phrase; no part of speech, usage notes, examples, repeated source text, or unrelated senses")
             add("translation: a natural, faithful translation of the complete sentence")
         }
         if (ContextPart.GRAMMAR in request.parts) add("grammar: a concise explanation of the sentence structure, clauses, and useful grammar")

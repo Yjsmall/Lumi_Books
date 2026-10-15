@@ -55,6 +55,7 @@ import com.huangder.lumibooks.ui.theme.LocalLiquidGlassCapability
 import com.huangder.lumibooks.ui.theme.LocalLiquidGlassTransparency
 import com.huangder.lumibooks.ui.theme.LocalMotionEnabled
 import com.huangder.lumibooks.ui.theme.LiquidGlassMaterial
+import com.huangder.lumibooks.ui.theme.LiquidGlassSurfaceStyle
 import com.huangder.lumibooks.ui.theme.cardOutline
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -64,6 +65,7 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.shadow.Shadow
 
 val LocalLiquidGlassBackdrop = staticCompositionLocalOf<Backdrop?> { null }
@@ -147,17 +149,28 @@ internal fun Modifier.liquidGlassBackdrop(
     controlEdge: Boolean = false,
     controlEdgeColor: Color = tintColor ?: contentScrimColor,
     controlEdgeForceCanvas: Boolean = false,
-    contentSurface: Boolean = !buttonInteraction
+    contentSurface: Boolean = !buttonInteraction,
+    surfaceStyle: LiquidGlassSurfaceStyle = LiquidGlassSurfaceStyle.Frosted
 ): Modifier {
     val lensSupported = supportsLiquidGlassLens(lensShape)
     val nativeOutlineSupported = supportsLiquidGlassHighlight(shape)
-    val surfaceColor = LiquidGlassMaterial.surfaceTint(
+    val clearControl = surfaceStyle == LiquidGlassSurfaceStyle.ClearControl
+    val surfaceColor = if (clearControl) {
+        if (isDark) Color(0xFF101012).copy(alpha = 0.34f - transparency * 0.24f)
+        else Color.White.copy(alpha = 0.32f - transparency * 0.28f)
+    } else LiquidGlassMaterial.surfaceTint(
         tintColor ?: contentScrimColor.takeIf { it.alpha > 0f }
             ?: if (isDark) Color(0xFF101012) else Color.White,
         transparency,
         contentSurface = contentSurface,
         minimumAlpha = if (tintColor == null) contentScrimColor.alpha else 0f
     )
+    val clearScrim = if (clearControl && tintColor == null && contentScrimColor.alpha > 0f) {
+        Brush.verticalGradient(listOf(
+            contentScrimColor.copy(alpha = (contentScrimColor.alpha * 1.28f).coerceAtMost(1f)),
+            contentScrimColor.copy(alpha = contentScrimColor.alpha * 0.72f)
+        ))
+    } else null
     val glassModifier = drawBackdrop(
         backdrop = backdrop,
         // The lens library only accepts rounded rectangular/corner-based shapes. A G2
@@ -165,16 +178,25 @@ internal fun Modifier.liquidGlassBackdrop(
         // the same-radius rounded rectangle is only the SDF proxy used by the lens.
         shape = { lensShape },
         effects = {
-            blur(LiquidGlassMaterial.blurRadius(transparency).toPx() + blurBoostPx.coerceAtLeast(0f))
+            if (clearControl) vibrancy()
+            if (!clearControl || transparency < 1f || blurBoostPx > 0f) {
+                blur(LiquidGlassMaterial.blurRadius(transparency, surfaceStyle).toPx() + blurBoostPx.coerceAtLeast(0f))
+            }
             if (lensSupported) {
                 val progress = if (motionEnabled) {
                     (buttonInteractionState?.pressProgress ?: pressProgress).coerceIn(0f, 1f)
                 } else 0f
-                lens(
-                    (2.dp + 10.dp * progress).toPx(),
-                    (4.dp + 20.dp * progress).toPx(),
-                    chromaticAberration = progress > 0.05f
-                )
+                if (clearControl) {
+                    if (buttonInteraction) lens(12.dp.toPx(), 24.dp.toPx())
+                    else lens((12.dp + 4.dp * pressProgress).toPx(), (24.dp + 4.dp * pressProgress).toPx(),
+                        chromaticAberration = pressProgress > 0.05f)
+                } else {
+                    lens(
+                        (2.dp + 10.dp * progress).toPx(),
+                        (4.dp + 20.dp * progress).toPx(),
+                        chromaticAberration = progress > 0.05f
+                    )
+                }
             }
         },
         layerBlock = {
@@ -218,10 +240,16 @@ internal fun Modifier.liquidGlassBackdrop(
             )
         },
         onDrawSurface = {
-            if (tintColor != null) {
-                drawRect(tintColor, blendMode = BlendMode.Hue)
+            if (clearControl) {
+                drawRect(surfaceColor)
+                if (tintColor != null) {
+                    drawRect(tintColor, blendMode = BlendMode.Hue)
+                    drawRect(tintColor.copy(alpha = 0.75f))
+                } else if (clearScrim != null) drawRect(clearScrim)
+            } else {
+                if (tintColor != null) drawRect(tintColor, blendMode = BlendMode.Hue)
+                drawRect(surfaceColor)
             }
-            drawRect(surfaceColor)
             if (contrastScrimColor.alpha > 0f) drawRect(contrastScrimColor)
         }
     )
@@ -420,6 +448,7 @@ fun LiquidGlassSurface(
     contentAlignment: Alignment = Alignment.Center,
     /** Optical control rim; large surfaces keep their existing edge unless explicitly opted in. */
     controlEdge: Boolean = false,
+    surfaceStyle: LiquidGlassSurfaceStyle = LiquidGlassSurfaceStyle.Frosted,
     content: @Composable BoxScope.() -> Unit
 ) {
     val glassLayer = LocalLiquidGlassLayer.current + 1
@@ -494,7 +523,7 @@ fun LiquidGlassSurface(
     val surfaceModifier = if (
         isLiquidGlass && backdrop == null && inheritedBackdrop == null &&
             globalBackdrop != null &&
-        !interactive && onClick == null && tintColor == null
+        !interactive && onClick == null && tintColor == null && surfaceStyle == LiquidGlassSurfaceStyle.Frosted
     ) {
         Modifier.lumiCardSurface(fallbackColor, shape, controlEdge = useControlEdge)
             .background(contrastScrim, shape)
@@ -519,10 +548,15 @@ fun LiquidGlassSurface(
             controlEdge = useControlEdge,
             controlEdgeColor = edgeColor,
             controlEdgeForceCanvas = forceCanvasEdge,
-            contentSurface = !interactive && tintColor == null
+            contentSurface = !interactive && tintColor == null,
+            surfaceStyle = surfaceStyle
         )
     } else if (isLiquidGlass) {
-        val fallbackScrim = LiquidGlassMaterial.surfaceTint(
+        val clearControl = surfaceStyle == LiquidGlassSurfaceStyle.ClearControl
+        val fallbackScrim = if (clearControl) {
+            tintColor?.copy(alpha = 0.75f) ?: contentScrimColor.takeIf { it.alpha > 0f }
+                ?: fallbackColor.copy(alpha = 0.42f)
+        } else LiquidGlassMaterial.surfaceTint(
             tintColor ?: contentScrimColor.takeIf { it.alpha > 0f } ?: fallbackColor,
             transparency,
             contentSurface = !interactive && tintColor == null,
@@ -546,7 +580,10 @@ fun LiquidGlassSurface(
                 } else Modifier
             )
             .clip(shape)
-            .background(fallbackScrim)
+            .then(if (clearControl) Modifier.background(Brush.verticalGradient(listOf(
+                fallbackScrim.copy(alpha = (fallbackScrim.alpha * 1.20f).coerceAtMost(0.88f)),
+                fallbackScrim.copy(alpha = fallbackScrim.alpha * 0.76f)
+            ))) else Modifier.background(fallbackScrim))
             .background(contrastScrim)
             .then(
                 if (useControlEdge) Modifier.liquidGlassControlEdge(shape, edgeColor, isDark, forceCanvasEdge)
