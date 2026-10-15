@@ -35,14 +35,22 @@ class CoverFlowReaderStateTest {
         assertEquals(1f, state.coverFlowProgressSnapshot.value, 0f)
     }
 
-    @Test fun `slow reader retains sharp cover and reverse uses restored focus geometry`() = runTest {
+    @Test fun `slow reader completes cover motion before content reveal and reverses to restored focus`() = runTest {
         val state = transition()
         state.startOpen(book, null, source, 0f, BookReaderPresentation.CoverFlow)
         advanceUntilIdle()
         assertEquals(BookReaderTransitionPhase.ReaderLoading, state.phase)
-        assertEquals(1f, CoverFlowReaderMotion.coverAlpha(state.coverFlowProgressSnapshot.value), 0f)
+        assertEquals(1f, state.coverFlowProgressSnapshot.value, 0f)
+        assertEquals(0f, CoverFlowReaderMotion.coverAlpha(state.coverFlowProgressSnapshot.value), 0f)
+        assertEquals(0f, state.readerRevealSnapshot.value, 0f)
         state.markReaderReady()
+        advanceTimeBy(100)
+        assertEquals(BookReaderTransitionPhase.Ready, state.phase)
+        assertEquals(1f, state.coverFlowProgressSnapshot.value, 0f)
+        assertTrue(state.readerRevealSnapshot.value in 0.01f..0.99f)
         advanceUntilIdle()
+        assertEquals(BookReaderTransitionPhase.Reader, state.phase)
+        assertEquals(1f, state.readerRevealSnapshot.value, 0f)
         assertTrue(state.startClose())
         val restored = Rect(110f, 250f, 310f, 550f)
         state.updateCoverFlowReturnSource(book.id, restored)

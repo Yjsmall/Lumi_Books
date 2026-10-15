@@ -89,13 +89,9 @@ class TxtTitlePageRenderingTest {
         }
     }
 
-    /**
-     * 用户反馈的标题重叠与「对齐模式」相关：章首标题必须始终按起始边（左）对齐，
-     * 不受居中 / 右对齐 / 两端对齐设置影响。这里渲染只有标题的页面，
-     * 逐像素比较四种模式下与「左对齐」的结果。
-     */
+    /** Titles follow explicit alignment; natural mode preserves the publisher's alignment. */
     @Test
-    fun chapterTitleStaysLeftAlignedInEveryAlignmentMode() {
+    fun chapterTitleFollowsConfiguredAlignmentAndPreservesPublisherInNaturalMode() {
         val title = "\u7b2c5\u7ae0 \u4e0e\u65f6\u95f4\u8d5b\u8dd1"
         val source = SpannableStringBuilder("$title\n").apply {
             setSpan(AbsoluteSizeSpan(22, true), 0, title.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -105,18 +101,28 @@ class TxtTitlePageRenderingTest {
         assertEquals(title.length + 1, titleEnd)
 
         val left = renderChapterTitlePage(source, ReaderTextAlignment.LEFT, titleEnd)
-        listOf(
-            ReaderTextAlignment.NATURAL,
-            ReaderTextAlignment.CENTER,
-            ReaderTextAlignment.RIGHT,
-            ReaderTextAlignment.JUSTIFY
-        ).forEach { alignment ->
+        val leftEdge = firstInkColumn(left)
+        assertTrue("左对齐标题应落在正文列左边缘附近", leftEdge in 40..80)
+        listOf(ReaderTextAlignment.NATURAL, ReaderTextAlignment.JUSTIFY).forEach { alignment ->
             val actual = renderChapterTitlePage(source, alignment, titleEnd)
-            assertTrue("$alignment 下章首标题没有保持左对齐", left.sameAs(actual))
+            assertTrue("$alignment 不应移动没有出版社对齐设置的单行标题", left.sameAs(actual))
             actual.recycle()
         }
-        // 标题墨迹要贴在正文列左边缘，而不是被居中后留下大段左边距。
-        assertTrue("标题墨迹左缘应落在正文列左边缘附近", firstInkColumn(left) in 40..80)
+
+        val centered = renderChapterTitlePage(source, ReaderTextAlignment.CENTER, titleEnd)
+        val right = renderChapterTitlePage(source, ReaderTextAlignment.RIGHT, titleEnd)
+        assertTrue("居中设置应将标题移到左对齐位置右侧", firstInkColumn(centered) > leftEdge)
+        assertTrue("右对齐标题应位于居中标题右侧", firstInkColumn(right) > firstInkColumn(centered))
+
+        val publisherCentered = SpannableStringBuilder(source).apply {
+            setSpan(android.text.style.AlignmentSpan.Standard(android.text.Layout.Alignment.ALIGN_CENTER),
+                0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        val natural = renderChapterTitlePage(publisherCentered, ReaderTextAlignment.NATURAL, titleEnd)
+        assertTrue("自然模式应保留出版社的居中标题", centered.sameAs(natural))
+        natural.recycle()
+        right.recycle()
+        centered.recycle()
         left.recycle()
     }
 

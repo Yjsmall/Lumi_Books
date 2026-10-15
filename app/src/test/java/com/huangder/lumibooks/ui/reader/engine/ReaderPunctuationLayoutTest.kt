@@ -151,6 +151,7 @@ class ReaderPunctuationLayoutTest {
             }
             val scrollImage = render(scroll, 320, 1000)
             val page = JustifiedTextView(context).apply {
+                setDefaultTextColor(Color.BLACK)
                 setSourceLayoutProvider { scroll.layout }
                 this.text = scroll.text
                 readerJustificationMode = scroll.justificationMode
@@ -198,6 +199,7 @@ class ReaderPunctuationLayoutTest {
                 }
                 val page = JustifiedTextView(context).apply {
                     setPadding(40, 10, 40, 10)
+                    setDefaultTextColor(Color.BLACK)
                     setSourceLayoutProvider { scroll.layout }
                     text = scroll.text
                     readerJustificationMode = scroll.readerJustificationMode

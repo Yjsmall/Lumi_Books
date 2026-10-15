@@ -34,10 +34,13 @@ class BookReaderHandoffTest {
         assertEquals(BookReaderTransitionPhase.Ready, state.phase)
         assertTrue(state.sizeSnapshot.value < 1f)
         assertTrue(state.shellAlphaSnapshot.value in 0.01f..0.99f)
-        advanceTimeBy(140)
+        assertTrue(state.readerRevealSnapshot.value in 0.01f..0.99f)
+        // Completion includes the content fade and its final frame, not just the shell fade.
+        advanceUntilIdle()
         assertEquals(BookReaderTransitionPhase.Reader, state.phase)
         assertEquals(0f, state.shellAlphaSnapshot.value, 0f)
-        advanceUntilIdle()
+        assertEquals(1f, state.readerRevealSnapshot.value, 0f)
+        assertEquals(1f, state.sizeSnapshot.value, 0f)
     }
 
     @Test fun `late page or error surface reveals without replaying the window`() = runTest {
@@ -47,9 +50,13 @@ class BookReaderHandoffTest {
         assertEquals(BookReaderTransitionPhase.ReaderLoading, state.phase)
         assertEquals(1f, state.sizeSnapshot.value, 0f)
         state.markReaderReady()
-        advanceTimeBy(220)
-        assertEquals(BookReaderTransitionPhase.Reader, state.phase)
+        advanceTimeBy(100)
+        assertEquals(BookReaderTransitionPhase.Ready, state.phase)
+        assertEquals(1f, state.sizeSnapshot.value, 0f)
+        assertTrue(state.readerRevealSnapshot.value in 0.01f..0.99f)
         advanceUntilIdle()
+        assertEquals(BookReaderTransitionPhase.Reader, state.phase)
+        assertEquals(1f, state.readerRevealSnapshot.value, 0f)
     }
 
     @Test fun `back during reveal cancels the opening completion and freezes return geometry`() = runTest {
